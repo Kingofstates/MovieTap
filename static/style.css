@@ -2020,48 +2020,67 @@ video::cue {
 }
 
 @media (max-width: 768px) {
-  /* 1. Global & Typography */
-  body {
-    font-size: 14px;
+  /* 1. Full-Device Bleed & Zero Waste Margins */
+  html, body {
+    width: 100%;
+    max-width: 100vw;
+    margin: 0;
+    padding: 0;
     overflow-x: hidden;
+    font-size: 14px;
     -webkit-tap-highlight-color: transparent;
   }
 
-  /* 2. Top Hero Section */
-  .hero-banner {
-    min-height: auto;
-    height: auto;
-    padding: 36px 16px 20px;
-    margin-bottom: 8px;
+  .main-content {
+    width: 100%;
+    max-width: 100vw;
+    margin: 0;
+    padding: 0 0 60px;
+    overflow-x: hidden;
   }
 
-  .hero-content {
+  /* 2. Full-Width Edge-to-Edge Hero Section */
+  .hero-anime-section {
+    width: 100%;
+    min-height: auto;
+    padding: 28px 12px 20px;
+    margin: 0;
+  }
+
+  .hero-center-content {
+    width: 100%;
     max-width: 100%;
+    padding: 0;
   }
 
   .center-brand {
-    margin-bottom: 14px;
+    margin-bottom: 12px;
   }
 
   .center-logo-pill {
     font-size: 0.68rem;
-    padding: 2px 10px;
+    font-weight: 800;
+    padding: 3px 10px;
     margin-bottom: 6px;
+    letter-spacing: 0.6px;
   }
 
   .center-brand-title {
     font-size: 2.3rem;
+    font-weight: 900;
     letter-spacing: -0.5px;
+    line-height: 1.1;
     margin-bottom: 6px;
-    line-height: 1.15;
   }
 
   .center-brand-tagline {
-    font-size: 0.8rem;
-    line-height: 1.4;
-    padding: 0 8px;
-    max-width: 90%;
+    font-size: 0.78rem;
+    font-weight: 500;
+    line-height: 1.35;
     color: #94a3b8;
+    max-width: 95%;
+    margin: 0 auto;
+    padding: 0 4px;
   }
 
   /* 3. Sleek Mobile Horizontal Navigation Carousel */
@@ -2072,45 +2091,68 @@ video::cue {
     -webkit-overflow-scrolling: touch;
     scroll-snap-type: x mandatory;
     gap: 8px;
-    padding: 4px 16px 8px;
-    margin: 0 -16px 14px;
+    width: 100%;
+    padding: 6px 12px 10px;
+    margin: 0 0 12px 0;
     justify-content: flex-start;
     scrollbar-width: none;
   }
   .hero-nav-buttons::-webkit-scrollbar {
     display: none;
   }
+
   .hero-pill-btn {
     flex-shrink: 0;
     scroll-snap-align: start;
     font-size: 0.82rem;
-    padding: 7px 14px;
+    font-weight: 600;
+    padding: 8px 14px;
     border-radius: 20px;
     white-space: nowrap;
-    border: 1px solid rgba(255, 255, 255, 0.15);
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    background: rgba(255, 255, 255, 0.08);
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .hero-pill-btn i {
+    font-size: 0.85rem;
   }
 
   /* 4. Prominent Mobile Search Bar & Autosuggestions */
   .center-search-wrapper {
+    width: 100%;
     max-width: 100%;
+    padding: 0 12px;
     margin-bottom: 12px;
-    padding: 0;
   }
 
   .center-search-bar {
+    width: 100%;
     height: 48px;
-    padding: 6px 14px;
+    padding: 0 14px;
     border-radius: 24px;
-    background: rgba(15, 20, 32, 0.95);
+    background: rgba(15, 20, 32, 0.96);
+    border: 1.5px solid rgba(255, 255, 255, 0.22);
+    display: flex;
+    align-items: center;
+    gap: 8px;
   }
 
   .center-search-bar input {
-    font-size: 16px; /* Critical: Stops iOS Safari from zooming into the input */
-    padding: 0 8px;
+    font-size: 16px; /* Essential: Prevents iOS auto-zoom */
+    padding: 0;
+    height: 100%;
+    width: 100%;
+    color: #ffffff;
+  }
+  .center-search-bar input::placeholder {
+    font-size: 0.88rem;
+    color: #64748b;
   }
 
   .search-inner-icon {
-    font-size: 0.95rem;
+    font-size: 1rem;
     color: #64748b;
   }
 
@@ -2118,37 +2160,46 @@ video::cue {
     width: 32px;
     height: 32px;
     font-size: 0.85rem;
+    flex-shrink: 0;
   }
 
   .suggestions-dropdown {
-    width: 100%;
-    left: 0;
-    right: 0;
+    width: calc(100% - 24px);
+    left: 12px;
+    right: 12px;
     border-radius: 16px;
     max-height: 55vh;
-    box-shadow: 0 12px 36px rgba(0, 0, 0, 0.8);
+    box-shadow: 0 12px 36px rgba(0, 0, 0, 0.85);
+    background: #0f1523;
+    border: 1px solid rgba(255, 255, 255, 0.15);
   }
 
   .suggestion-item {
     padding: 8px 12px;
     gap: 12px;
-    min-height: 58px;
+    min-height: 56px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
   }
 
   .suggestion-thumb {
     width: 38px;
     height: 54px;
     border-radius: 6px;
+    flex-shrink: 0;
+    object-fit: cover;
   }
 
   .suggestion-title {
     font-size: 0.88rem;
     font-weight: 600;
+    color: #ffffff;
+    line-height: 1.25;
   }
 
   .suggestion-meta {
     font-size: 0.72rem;
     gap: 6px;
+    color: #94a3b8;
   }
 
   /* 5. Mobile Category Tags Carousel */
@@ -2159,37 +2210,61 @@ video::cue {
     -webkit-overflow-scrolling: touch;
     scroll-snap-type: x mandatory;
     gap: 8px;
-    padding: 4px 16px 8px;
-    margin: 0 -16px;
+    width: 100%;
+    padding: 2px 12px 6px;
+    margin: 0;
     justify-content: flex-start;
     scrollbar-width: none;
   }
   .quick-genre-tags::-webkit-scrollbar {
     display: none;
   }
+
   .genre-tag {
     flex-shrink: 0;
     scroll-snap-align: start;
-    font-size: 0.75rem;
+    font-size: 0.76rem;
+    font-weight: 600;
     padding: 6px 12px;
     border-radius: 16px;
     white-space: nowrap;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    color: #e2e8f0;
+  }
+  .genre-tag i {
+    font-size: 0.75rem;
+  }
+  .genre-tag.active {
+    background: rgba(229, 9, 20, 0.25);
+    border-color: var(--accent-primary);
+    color: #ffffff;
   }
 
-  /* 6. Catalog Sections & Card Grids */
+  /* 6. Catalog Sections & Clean Full-Width 2-Column Grid */
   .catalog-section {
-    padding: 18px 14px;
+    padding: 16px 12px;
+    margin-top: 14px;
+    width: 100%;
   }
 
   .section-header {
     flex-direction: column;
     align-items: flex-start;
     gap: 10px;
-    margin-bottom: 14px;
+    margin-bottom: 12px;
+    width: 100%;
   }
 
   .section-header h2 {
-    font-size: 1.2rem;
+    font-size: 1.18rem;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    gap: 8px;
   }
 
   .section-actions {
@@ -2198,80 +2273,150 @@ video::cue {
     -webkit-overflow-scrolling: touch;
     width: 100%;
     gap: 6px;
-    padding-bottom: 4px;
+    padding-bottom: 2px;
     scrollbar-width: none;
   }
   .section-actions::-webkit-scrollbar {
     display: none;
   }
+
   .section-actions .pill-btn {
     flex-shrink: 0;
-    padding: 5px 12px;
+    padding: 6px 12px;
     font-size: 0.76rem;
-    border-radius: 14px;
+    font-weight: 600;
+    border-radius: 16px;
   }
 
   .media-grid {
+    display: grid;
     grid-template-columns: repeat(2, 1fr);
     gap: 10px;
+    width: 100%;
   }
 
   .media-card {
     border-radius: 10px;
+    background: #111726;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
   }
 
-  .media-poster-wrapper {
+  .poster-wrapper {
+    width: 100%;
     aspect-ratio: 2 / 3;
-    border-radius: 10px 10px 0 0;
+    position: relative;
+    overflow: hidden;
+    background: #151c2c;
   }
 
-  .media-info {
+  .poster-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .card-type-badge {
+    position: absolute;
+    top: 6px;
+    left: 6px;
+    background: rgba(10, 14, 23, 0.88);
+    backdrop-filter: blur(4px);
+    color: #ffffff;
+    font-size: 0.62rem;
+    font-weight: 700;
+    padding: 2px 5px;
+    border-radius: 4px;
+    letter-spacing: 0.4px;
+  }
+
+  .card-rating {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    background: rgba(10, 14, 23, 0.88);
+    backdrop-filter: blur(4px);
+    color: #f5c518;
+    font-size: 0.68rem;
+    font-weight: 700;
+    padding: 2px 5px;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    gap: 3px;
+  }
+
+  .card-play-overlay {
+    display: none; /* No hover overlays on mobile touch devices */
+  }
+
+  .card-info {
     padding: 8px 8px 10px;
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    justify-content: space-between;
   }
 
-  .media-title {
-    font-size: 0.85rem;
+  .card-title {
+    font-size: 0.84rem;
     font-weight: 600;
     line-height: 1.25;
+    color: #f1f5f9;
     margin-bottom: 4px;
     display: -webkit-box;
     -webkit-line-clamp: 2;
     -webkit-box-orient: vertical;
     overflow: hidden;
+    text-overflow: ellipsis;
+    min-height: 2.1em;
   }
 
-  .media-meta {
+  .card-meta {
     font-size: 0.7rem;
-    gap: 4px;
+    color: #94a3b8;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    justify-content: space-between;
   }
 
-  .badge-dub {
-    font-size: 0.62rem;
-    padding: 2px 5px;
-    border-radius: 4px;
-  }
-
-  /* 7. Disney+ / Hotstar Details Modal on Mobile */
+  /* 7. Disney+ / Hotstar Details Modal - Mobile Full-Width Sheet */
   .modal-dialog {
-    width: 94%;
-    max-width: 94%;
-    max-height: 88vh;
-    border-radius: 16px;
-    margin: 16px auto;
+    width: 100%;
+    max-width: 100vw;
+    height: 94vh;
+    max-height: 94vh;
+    margin: 6vh 0 0 0;
+    border-radius: 22px 22px 0 0;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: #0d121e;
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    border-bottom: none;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    box-shadow: 0 -12px 40px rgba(0, 0, 0, 0.95);
   }
 
   .modal-close-btn {
-    top: 10px;
-    right: 10px;
-    width: 32px;
-    height: 32px;
-    font-size: 1rem;
+    top: 12px;
+    right: 12px;
+    width: 34px;
+    height: 34px;
+    font-size: 1.1rem;
     background: rgba(0, 0, 0, 0.75);
     border-radius: 50%;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    z-index: 20;
   }
 
   .modal-hero {
-    padding: 16px 14px;
+    padding: 20px 14px 16px;
   }
 
   .modal-hero-content {
@@ -2282,9 +2427,10 @@ video::cue {
   }
 
   .modal-poster-wrapper {
-    max-width: 130px;
-    border-radius: 8px;
-    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.6);
+    max-width: 135px;
+    border-radius: 10px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.7);
+    overflow: hidden;
   }
 
   .modal-info {
@@ -2293,22 +2439,28 @@ video::cue {
 
   .modal-title {
     font-size: 1.4rem;
+    font-weight: 800;
     line-height: 1.2;
     margin-bottom: 6px;
+    color: #ffffff;
   }
 
   .modal-meta-chips {
     justify-content: center;
     gap: 6px;
     margin-bottom: 8px;
+    flex-wrap: wrap;
   }
   .modal-meta-chips span {
     font-size: 0.7rem;
-    padding: 2px 7px;
+    font-weight: 600;
+    padding: 3px 8px;
+    border-radius: 6px;
   }
 
   .modal-genres {
     font-size: 0.78rem;
+    color: #94a3b8;
     margin-bottom: 8px;
   }
 
@@ -2320,12 +2472,15 @@ video::cue {
     overflow-y: auto;
     margin-bottom: 12px;
     color: #cbd5e1;
+    padding: 0 4px;
   }
 
   .modal-extra-meta {
     font-size: 0.76rem;
     text-align: left;
     margin-bottom: 14px;
+    padding: 0 4px;
+    color: #94a3b8;
   }
 
   .modal-actions {
@@ -2337,9 +2492,10 @@ video::cue {
   .modal-actions .btn {
     width: 100%;
     justify-content: center;
-    padding: 11px 16px;
-    font-size: 0.9rem;
-    border-radius: 10px;
+    padding: 12px 16px;
+    font-size: 0.92rem;
+    font-weight: 700;
+    border-radius: 12px;
   }
 
   .modal-language-section,
@@ -2347,16 +2503,34 @@ video::cue {
   .modal-stream-section,
   .modal-subtitles-section {
     padding: 14px;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+  }
+
+  .section-title-row h3 {
+    font-size: 0.95rem;
+    font-weight: 700;
   }
 
   .language-chips-grid {
     grid-template-columns: repeat(2, 1fr);
     gap: 8px;
+    width: 100%;
   }
 
   .lang-chip {
-    padding: 9px 10px;
-    font-size: 0.78rem;
+    padding: 10px 10px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px;
+  }
+
+  .season-selector-wrapper select {
+    padding: 6px 12px;
+    font-size: 0.85rem;
     border-radius: 8px;
   }
 
@@ -2366,36 +2540,60 @@ video::cue {
   }
 
   .ep-btn {
-    padding: 7px 4px;
-    border-radius: 6px;
+    padding: 8px 4px;
+    border-radius: 8px;
   }
   .ep-num {
     font-size: 0.74rem;
+    font-weight: 700;
   }
   .ep-play-label {
     font-size: 0.62rem;
   }
 
-  /* 8. Download Options Modal */
+  .stream-qualities-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .quality-chip {
+    font-size: 0.76rem;
+    padding: 6px 10px;
+    border-radius: 8px;
+  }
+
+  /* 8. Download Options Modal - Mobile Bottom Sheet */
   .download-dialog {
-    width: 94%;
-    max-width: 94%;
-    border-radius: 16px;
-    padding: 18px 14px;
+    width: 100%;
+    max-width: 100vw;
+    margin: auto 0 0 0;
+    border-radius: 22px 22px 0 0;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    padding: 22px 16px 28px;
+    background: #0d121e;
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    border-bottom: none;
+    box-shadow: 0 -12px 40px rgba(0, 0, 0, 0.95);
   }
 
   .download-modal-header {
-    gap: 10px;
+    gap: 12px;
+    align-items: center;
   }
 
   .download-icon-circle {
-    width: 40px;
-    height: 40px;
-    font-size: 1.1rem;
+    width: 42px;
+    height: 42px;
+    font-size: 1.15rem;
+    border-radius: 12px;
   }
 
   .download-modal-header h2 {
     font-size: 1.15rem;
+    font-weight: 700;
   }
 
   .download-chips-row {
@@ -2405,34 +2603,57 @@ video::cue {
 
   .download-chip {
     font-size: 0.76rem;
-    padding: 7px 11px;
-    border-radius: 6px;
+    padding: 8px 12px;
+    border-radius: 8px;
   }
 
   .download-modal-footer {
     flex-direction: column-reverse;
     gap: 8px;
+    margin-top: 16px;
   }
   .download-modal-footer .btn {
     width: 100%;
     justify-content: center;
+    padding: 12px;
+    font-size: 0.92rem;
+    border-radius: 10px;
   }
 
-  /* 9. Video Player Controls on Mobile */
+  /* 9. Video Player Controls on Mobile - Full Viewport */
+  .player-modal {
+    position: fixed;
+    inset: 0;
+    width: 100vw;
+    height: 100vh;
+    z-index: 9999;
+    background: #000;
+  }
+
+  .player-container {
+    width: 100vw;
+    height: 100vh;
+    max-width: 100vw;
+    max-height: 100vh;
+    border-radius: 0;
+  }
+
   .player-top-bar {
     padding: 10px 12px;
+    gap: 8px;
   }
 
   .player-title-info h2 {
-    font-size: 0.92rem;
-    max-width: 50vw;
+    font-size: 0.9rem;
+    max-width: 48vw;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
 
   .player-title-info span {
-    font-size: 0.72rem;
+    font-size: 0.7rem;
+    color: #94a3b8;
   }
 
   .player-top-right {
@@ -2440,19 +2661,20 @@ video::cue {
   }
 
   .badge-audio, .badge-quality {
-    font-size: 0.68rem;
+    font-size: 0.66rem;
+    font-weight: 700;
     padding: 3px 6px;
     border-radius: 4px;
   }
 
   .player-controls {
-    padding: 8px 10px 12px;
+    padding: 8px 10px 14px;
     background: linear-gradient(180deg, transparent 0%, rgba(0, 0, 0, 0.85) 40%, rgba(0, 0, 0, 0.98) 100%);
   }
 
   .player-progress-container {
     height: 22px;
-    margin-bottom: 8px;
+    margin-bottom: 6px;
     touch-action: none;
   }
 
@@ -2473,25 +2695,29 @@ video::cue {
     justify-content: space-between;
     gap: 4px;
     flex-wrap: nowrap;
+    width: 100%;
   }
 
   .controls-left {
     gap: 4px;
+    align-items: center;
   }
 
-  /* Hide desktop volume slider on mobile: phones have side hardware volume rockers */
+  /* Hide desktop volume slider on mobile */
   .volume-control {
     display: none;
   }
 
   .time-display {
-    font-size: 0.72rem;
+    font-size: 0.7rem;
     margin-left: 2px;
     color: #94a3b8;
+    white-space: nowrap;
   }
 
   .controls-right {
     gap: 4px;
+    align-items: center;
   }
 
   .ctrl-btn {
@@ -2536,12 +2762,12 @@ video::cue {
   }
 
   #btnPiP {
-    display: none; /* Hide PiP on mobile screens to preserve layout */
+    display: none;
   }
 
   .custom-subtitle-overlay {
-    font-size: 1.05rem;
-    bottom: 60px;
+    font-size: 1.0rem;
+    bottom: 58px;
     max-width: 94%;
     padding: 3px 8px;
   }
@@ -2558,7 +2784,7 @@ video::cue {
     border-radius: 20px 20px 0 0;
     border-bottom: none;
     background: #0d121d;
-    box-shadow: 0 -10px 40px rgba(0, 0, 0, 0.9);
+    box-shadow: 0 -10px 40px rgba(0, 0, 0, 0.92);
     z-index: 500;
     transform: translateY(100%);
     transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1);
@@ -2575,7 +2801,7 @@ video::cue {
 
   .drawer-column {
     border-right: none;
-    border-bottom: 1px solid var(--border-subtle);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
     padding: 12px 14px;
   }
   .drawer-column:last-child {
@@ -2590,9 +2816,10 @@ video::cue {
 
   /* 11. Footer on Mobile */
   .footer-anime-section {
-    min-height: 160px;
-    padding: 36px 14px 24px;
-    margin-top: 36px;
+    min-height: 150px;
+    padding: 30px 14px 20px;
+    margin-top: 30px;
+    width: 100%;
   }
 
   .footer-bottom-row {
@@ -2612,12 +2839,13 @@ video::cue {
 
   /* 12. Toast on Mobile */
   .toast {
-    left: 16px;
-    right: 16px;
-    bottom: 20px;
+    left: 14px;
+    right: 14px;
+    bottom: 16px;
     text-align: center;
-    font-size: 0.85rem;
-    padding: 10px 16px;
+    font-size: 0.84rem;
+    padding: 10px 14px;
+    border-radius: 10px;
   }
 }
 
@@ -2630,13 +2858,19 @@ video::cue {
     grid-template-columns: repeat(2, 1fr);
     gap: 8px;
   }
+  .card-info {
+    padding: 6px 6px 8px;
+  }
+  .card-title {
+    font-size: 0.78rem;
+  }
   .ctrl-btn {
     width: 30px;
     height: 30px;
     font-size: 0.88rem;
   }
   .time-display {
-    font-size: 0.65rem;
+    font-size: 0.64rem;
   }
   #btnQuality span {
     font-size: 0.62rem;
