@@ -1143,12 +1143,64 @@ async function startPlayback(media, dub, season = 0, episode = 0) {
   }
 }
 
+function canPlayDashStream(stream) {
+  if (!window.dashjs || typeof MediaSource === 'undefined') return false;
+  // If the stream is explicitly HEVC or H265, test if MediaSource supports hev1
+  if (stream) {
+    const codecStr = (stream.codec || '').toLowerCase();
+    const urlStr = (stream.url || '').toLowerCase();
+    if (codecStr.includes('hevc') || codecStr.includes('h265') || urlStr.includes('h265')) {
+      const isHevcSupported = MediaSource.isTypeSupported('video/mp4; codecs="hev1.1.6.L120.90"') ||
+                             MediaSource.isTypeSupported('video/mp4; codecs="hev1"') ||
+                             MediaSource.isTypeSupported('video/mp4; codecs="hvc1"');
+      if (!isHevcSupported) {
+        return false;
+      }
+    }
+  }
+  return true;
+}
+
+function handlePlaybackFailure(failedUrl, userMsg) {
+  DOM.playerSpinner.classList.remove('visible');
+  clearTimeout(state.playbackStallTimeout);
+  if (window.dashPlayer) {
+    try { window.dashPlayer.reset(); } catch(e){}
+    window.dashPlayer = null;
+  }
+  
+  // Try finding an alternative stream with direct MP4 format
+  const streams = state.currentStreams || [];
+  const altStream = streams.find(s => s.proxy_url !== failedUrl && s.format !== 'DASH')
+                 || streams.find(s => s.proxy_url !== failedUrl);
+
+  if (altStream) {
+    showToast(userMsg || `Switched to compatible ${altStream.quality} stream`);
+    state.activeStream = altStream;
+    DOM.qualityBadgeLabel.textContent = altStream.quality;
+    DOM.playerQualityBadge.innerHTML = `<i class="fa-solid fa-gear"></i> ${altStream.quality}`;
+    playStream(altStream.proxy_url, 0);
+  } else {
+    // If no alternative exists, try server-side remux proxy
+    const active = state.activeStream;
+    if (active && active.url) {
+      showToast("Remuxing stream for instant playback...");
+      const remuxUrl = `/api/stream_mp4?url=${encodeURIComponent(active.url)}&cookie=${encodeURIComponent(active.sign_cookie || '')}`;
+      DOM.videoElement.src = remuxUrl;
+      DOM.videoElement.play().catch(e => console.warn("Remux play error:", e));
+    } else {
+      showToast("Stream could not be played. Please try another audio track or title.");
+    }
+  }
+}
+
 function playStream(streamUrl, startTime = 0) {
   // Clear any existing tracks
   while (DOM.videoElement.getElementsByTagName('track').length > 0) {
     DOM.videoElement.removeChild(DOM.videoElement.getElementsByTagName('track')[0]);
   }
   DOM.subtitleOverlay.textContent = '';
+  clearTimeout(state.playbackStallTimeout);
 
   const isDash = streamUrl.toLowerCase().includes('.mpd') || 
     (state.activeStream && (
@@ -1165,6 +1217,25 @@ function playStream(streamUrl, startTime = 0) {
     }
   }
 
+  // Check if browser MSE can play this DASH stream
+  if (isDash && !canPlayDashStream(state.activeStream)) {
+    console.warn("Browser MSE does not support HEVC DASH format. Switching to progressive/fallback stream...");
+    const directAlt = (state.currentStreams || []).find(s => s.format !== 'DASH');
+    if (directAlt) {
+      showToast(`1080p HEVC DASH unsupported by browser MSE. Switched to ${directAlt.quality} MP4.`);
+      state.activeStream = directAlt;
+      DOM.qualityBadgeLabel.textContent = directAlt.quality;
+      DOM.playerQualityBadge.innerHTML = `<i class="fa-solid fa-gear"></i> ${directAlt.quality}`;
+      playStream(directAlt.proxy_url, startTime);
+      return;
+    } else if (state.activeStream && state.activeStream.url) {
+      const remuxUrl = `/api/stream_mp4?url=${encodeURIComponent(state.activeStream.url)}&cookie=${encodeURIComponent(state.activeStream.sign_cookie || '')}`;
+      DOM.videoElement.src = remuxUrl;
+      DOM.videoElement.play().catch(e => console.warn("Remux play error:", e));
+      return;
+    }
+  }
+
   if (isDash && window.dashjs) {
     DOM.videoElement.removeAttribute('src');
     DOM.videoElement.load();
@@ -1177,6 +1248,26 @@ function playStream(streamUrl, startTime = 0) {
         }
       }
     });
+
+    // Error listener: Never let player hang on error
+    player.on(dashjs.MediaPlayer.events.ERROR, function(e) {
+      console.warn("DASH playback error event:", e);
+      handlePlaybackFailure(streamUrl, "1080p stream error. Switched to compatible stream.");
+    });
+
+    // Stall Watchdog: If buffering/spinner stays stuck for > 6s, auto-recover!
+    state.playbackStallTimeout = setTimeout(() => {
+      if (DOM.playerSpinner.classList.contains('visible') && DOM.videoElement.paused && DOM.videoElement.currentTime === 0) {
+        console.warn("DASH stream buffering stalled. Triggering auto-fallback...");
+        handlePlaybackFailure(streamUrl, "Stream taking too long. Switched to compatible quality.");
+      }
+    }, 6000);
+
+    player.on(dashjs.MediaPlayer.events.CAN_PLAY, function onCanPlay() {
+      clearTimeout(state.playbackStallTimeout);
+      DOM.playerSpinner.classList.remove('visible');
+    });
+
     player.initialize(DOM.videoElement, streamUrl, true);
     if (startTime > 0) {
       player.on(dashjs.MediaPlayer.events.CAN_PLAY, function onCanPlay() {
@@ -1423,12 +1514,11 @@ function switchQuality(newStream) {
     return;
   }
 
-  const currentTime = DOM.videoElement.currentTime;
-  const wasPlaying = !DOM.videoElement.paused;
-
+  const currentTime = DOM.videoElement.currentTime || 0;
   state.activeStream = newStream;
   DOM.qualityBadgeLabel.textContent = newStream.quality;
   DOM.playerQualityBadge.innerHTML = `<i class="fa-solid fa-gear"></i> ${newStream.quality}`;
+  DOM.playerSpinner.classList.add('visible');
 
   DOM.qualityOptionsList.querySelectorAll('.dropdown-item').forEach(item => {
     item.classList.toggle('active', item.getAttribute('data-url') === newStream.url);
@@ -1436,12 +1526,13 @@ function switchQuality(newStream) {
   DOM.qualityMenu.classList.remove('active');
 
   playStream(newStream.proxy_url, currentTime);
-  showToast(`Quality switched to ${newStream.quality}`);
+  showToast(`Switching quality to ${newStream.quality}...`);
 }
 
 // ----------------- Core Player Controls & Seekbar -----------------
 function closePlayer() {
   saveCurrentProgress();
+  clearTimeout(state.playbackStallTimeout);
   if (window.dashPlayer) {
     try {
       window.dashPlayer.reset();

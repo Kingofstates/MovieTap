@@ -603,6 +603,70 @@ async def download_subtitle(url: str = Query(...), filename: Optional[str] = Que
         logger.error(f"Subtitle download error: {e}")
         return JSONResponse(status_code=500, content={"error": str(e)})
 
+# ----------------- Progressive MP4 Remux Stream Proxy -----------------
+
+@app.get("/api/stream_mp4")
+async def stream_mp4_proxy(
+    request: Request,
+    url: str = Query(...),
+    cookie: Optional[str] = Query(None)
+):
+    """
+    On-the-fly progressive MP4 remuxing stream proxy.
+    Allows DASH streams or raw CDN streams to play seamlessly in standard HTML5 <video src>
+    without requiring client-side MPEG-DASH MSE or MediaSource decoder capabilities.
+    """
+    ffmpeg_headers = f"User-Agent: {client.user_agent}\r\n"
+    if ".mpd" in url.lower() or "dash" in url.lower():
+        ffmpeg_headers += f"Referer: {STREAM_REFERER}\r\n"
+    if cookie:
+        ffmpeg_headers += f"Cookie: {cookie}\r\n"
+
+    cmd = [
+        "ffmpeg", "-y",
+        "-headers", ffmpeg_headers,
+        "-i", url,
+        "-c:v", "copy",
+        "-c:a", "copy",
+        "-movflags", "+frag_keyframe+empty_moov+default_base_moof",
+        "-f", "mp4",
+        "pipe:1"
+    ]
+
+    try:
+        proc = await asyncio.create_subprocess_exec(
+            *cmd,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.DEVNULL
+        )
+
+        async def video_stream():
+            try:
+                while True:
+                    chunk = await proc.stdout.read(64 * 1024)
+                    if not chunk:
+                        break
+                    yield chunk
+            finally:
+                if proc.returncode is None:
+                    try:
+                        proc.kill()
+                    except Exception:
+                        pass
+
+        return StreamingResponse(
+            video_stream(),
+            media_type="video/mp4",
+            headers={
+                "Content-Type": "video/mp4",
+                "Access-Control-Allow-Origin": "*",
+                "Cache-Control": "no-cache",
+            }
+        )
+    except Exception as e:
+        logger.error(f"stream_mp4 error: {e}")
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
 # ----------------- DASH Segment Proxy -----------------
 
 @app.get("/api/dash/segment/{token}/{filename}")
