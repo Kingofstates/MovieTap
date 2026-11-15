@@ -159,6 +159,17 @@ const DOM = {
   playerSpinner: document.getElementById('playerSpinner'),
   playerControlsBar: document.getElementById('playerControlsBar'),
 
+  // YouTube Gesture Layer & Seek Indicators
+  playerScreenOverlay: document.getElementById('playerScreenOverlay'),
+  ytSeekLeft: document.getElementById('ytSeekLeft'),
+  ytSeekLeftText: document.getElementById('ytSeekLeftText'),
+  ytSeekRight: document.getElementById('ytSeekRight'),
+  ytSeekRightText: document.getElementById('ytSeekRightText'),
+  ytActionIndicator: document.getElementById('ytActionIndicator'),
+  ytActionBubble: document.getElementById('ytActionBubble'),
+  ytActionIcon: document.getElementById('ytActionIcon'),
+  ytActionText: document.getElementById('ytActionText'),
+
   // Hotstar Audio & Subtitles Drawer
   audioSubDrawer: document.getElementById('audioSubDrawer'),
   drawerCloseBtn: document.getElementById('drawerCloseBtn'),
@@ -389,16 +400,44 @@ function initEventListeners() {
 
   // Player Controls
   DOM.playerCloseBtn.addEventListener('click', closePlayer);
-  DOM.btnPlayPause.addEventListener('click', togglePlayPause);
-  DOM.playerBigPlayBtn.addEventListener('click', togglePlayPause);
-  DOM.btnRewind.addEventListener('click', () => seekRelative(-10));
-  DOM.btnForward.addEventListener('click', () => seekRelative(10));
-  DOM.btnVolume.addEventListener('click', toggleMute);
+  DOM.btnPlayPause.addEventListener('click', (e) => {
+    e.stopPropagation();
+    togglePlayPause(true);
+  });
+  DOM.playerBigPlayBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    togglePlayPause(true);
+  });
+  DOM.btnRewind.addEventListener('click', (e) => {
+    e.stopPropagation();
+    seekRelative(-10);
+    showYtSeekIndicator('left', 10);
+  });
+  DOM.btnForward.addEventListener('click', (e) => {
+    e.stopPropagation();
+    seekRelative(10);
+    showYtSeekIndicator('right', 10);
+  });
+  DOM.btnVolume.addEventListener('click', (e) => {
+    e.stopPropagation();
+    toggleMute();
+  });
   DOM.volumeSlider.addEventListener('input', (e) => {
     DOM.videoElement.volume = parseFloat(e.target.value);
     DOM.videoElement.muted = (DOM.videoElement.volume === 0);
     updateVolumeIcon();
   });
+
+  // YouTube Style Screen Click / Tap / Double-Tap Gesture Layer
+  if (DOM.playerScreenOverlay) {
+    DOM.playerScreenOverlay.addEventListener('click', handleScreenPointer);
+  }
+  if (DOM.playerControlsBar) {
+    DOM.playerControlsBar.addEventListener('click', (e) => e.stopPropagation());
+  }
+  if (DOM.playerTopBar) {
+    DOM.playerTopBar.addEventListener('click', (e) => e.stopPropagation());
+  }
 
   // Progress Seekbar
   DOM.progressContainer.addEventListener('click', seekToPosition);
@@ -1529,12 +1568,133 @@ function closePlayer() {
   renderContinueWatching();
 }
 
-function togglePlayPause() {
+// ----------------- YouTube Style Screen Actions & Seek System -----------------
+let actionIndicatorTimeout = null;
+let seekIndicatorTimeout = null;
+let screenClickTimeout = null;
+let lastTapTime = 0;
+let lastTapSide = null;
+let consecutiveTapCount = 0;
+
+function showActionIndicator(iconClass, text = '') {
+  if (!DOM.ytActionBubble || !DOM.ytActionIcon) return;
+  DOM.ytActionIcon.className = `fa-solid ${iconClass}`;
+  if (text) {
+    DOM.ytActionText.textContent = text;
+    DOM.ytActionText.style.display = 'block';
+  } else {
+    DOM.ytActionText.style.display = 'none';
+  }
+
+  DOM.ytActionBubble.classList.remove('show');
+  void DOM.ytActionBubble.offsetWidth; // Force reflow to re-trigger CSS keyframe pop
+  DOM.ytActionBubble.classList.add('show');
+
+  clearTimeout(actionIndicatorTimeout);
+  actionIndicatorTimeout = setTimeout(() => {
+    if (DOM.ytActionBubble) DOM.ytActionBubble.classList.remove('show');
+  }, 550);
+}
+
+function showYtSeekIndicator(side, seconds) {
+  const el = (side === 'left') ? DOM.ytSeekLeft : DOM.ytSeekRight;
+  const textEl = (side === 'left') ? DOM.ytSeekLeftText : DOM.ytSeekRightText;
+  if (!el || !textEl) return;
+
+  textEl.textContent = `${seconds} seconds`;
+
+  // Cancel opposite side if active
+  if (side === 'left' && DOM.ytSeekRight) DOM.ytSeekRight.classList.remove('active');
+  if (side === 'right' && DOM.ytSeekLeft) DOM.ytSeekLeft.classList.remove('active');
+
+  el.classList.add('active');
+
+  clearTimeout(seekIndicatorTimeout);
+  seekIndicatorTimeout = setTimeout(() => {
+    if (el) el.classList.remove('active');
+    consecutiveTapCount = 0;
+    lastTapSide = null;
+  }, 750);
+}
+
+function togglePlayPause(showIndicator = true) {
   if (DOM.videoElement.paused) {
     DOM.videoElement.play();
+    if (showIndicator) showActionIndicator('fa-play');
   } else {
     DOM.videoElement.pause();
+    if (showIndicator) showActionIndicator('fa-pause');
   }
+}
+
+function handleScreenPointer(e) {
+  // Ignore clicks if clicking inside buttons, drawer, or dropdown
+  if (e.target.closest('#playerControlsBar') ||
+      e.target.closest('#playerTopBar') ||
+      e.target.closest('#audioSubDrawer') ||
+      e.target.closest('#playerBigPlayBtn') ||
+      e.target.closest('.dropdown-menu')) {
+    return;
+  }
+
+  const rect = DOM.playerContainer.getBoundingClientRect();
+  const clientX = (e.clientX !== undefined)
+    ? e.clientX
+    : (e.changedTouches && e.changedTouches[0] ? e.changedTouches[0].clientX : rect.width / 2);
+  const relX = (clientX - rect.left) / rect.width;
+
+  let side = 'center';
+  if (relX < 0.35) side = 'left';
+  else if (relX > 0.65) side = 'right';
+
+  const now = Date.now();
+  const diff = now - lastTapTime;
+
+  // Double tap or rapid multi-tap (within 320ms) on same side or center
+  if (diff < 320 && (lastTapSide === side || (consecutiveTapCount > 0 && lastTapSide === side))) {
+    clearTimeout(screenClickTimeout);
+    screenClickTimeout = null;
+
+    if (side === 'center') {
+      // Double tap center toggles fullscreen (like YouTube)
+      toggleFullscreen();
+      consecutiveTapCount = 0;
+      lastTapSide = null;
+      lastTapTime = now;
+      resetControlsTimer();
+      return;
+    }
+
+    consecutiveTapCount++;
+    const totalSeconds = consecutiveTapCount * 10;
+
+    if (side === 'left') {
+      seekRelative(-10);
+      showYtSeekIndicator('left', totalSeconds);
+    } else {
+      seekRelative(10);
+      showYtSeekIndicator('right', totalSeconds);
+    }
+
+    lastTapTime = now;
+    lastTapSide = side;
+    resetControlsTimer();
+    return;
+  }
+
+  // Single click wait
+  lastTapTime = now;
+  lastTapSide = side;
+  consecutiveTapCount = 1;
+
+  clearTimeout(screenClickTimeout);
+  screenClickTimeout = setTimeout(() => {
+    // Single Click executed! Toggles Play / Pause with smooth indicator
+    consecutiveTapCount = 0;
+    lastTapSide = null;
+    togglePlayPause(true);
+    resetControlsTimer();
+  }, 260);
 }
 
 function seekRelative(seconds) {
@@ -1690,32 +1850,50 @@ function handleKeyboardShortcuts(e) {
   }
 
   if (isPlayerOpen) {
+    // Number keys 0-9 seek to percentages (0% to 90%)
+    if (e.key >= '0' && e.key <= '9' && !e.ctrlKey && !e.altKey && !e.metaKey) {
+      e.preventDefault();
+      const pct = parseInt(e.key) * 0.1;
+      DOM.videoElement.currentTime = (DOM.videoElement.duration || 0) * pct;
+      showActionIndicator('fa-clock', `${parseInt(e.key) * 10}%`);
+      resetControlsTimer();
+      return;
+    }
+
     switch (e.key) {
       case ' ':
       case 'k':
       case 'K':
         e.preventDefault();
-        togglePlayPause();
+        togglePlayPause(true);
         break;
+      case 'j':
+      case 'J':
       case 'ArrowLeft':
         e.preventDefault();
         seekRelative(-10);
+        showYtSeekIndicator('left', 10);
         break;
+      case 'l':
+      case 'L':
       case 'ArrowRight':
         e.preventDefault();
         seekRelative(10);
+        showYtSeekIndicator('right', 10);
         break;
       case 'ArrowUp':
         e.preventDefault();
         DOM.videoElement.volume = Math.min(1, DOM.videoElement.volume + 0.1);
         DOM.volumeSlider.value = DOM.videoElement.volume;
         updateVolumeIcon();
+        showActionIndicator('fa-volume-high', `${Math.round(DOM.videoElement.volume * 100)}%`);
         break;
       case 'ArrowDown':
         e.preventDefault();
         DOM.videoElement.volume = Math.max(0, DOM.videoElement.volume - 0.1);
         DOM.volumeSlider.value = DOM.videoElement.volume;
         updateVolumeIcon();
+        showActionIndicator(DOM.videoElement.volume === 0 ? 'fa-volume-xmark' : 'fa-volume-low', `${Math.round(DOM.videoElement.volume * 100)}%`);
         break;
       case 'f':
       case 'F':
@@ -1726,6 +1904,21 @@ function handleKeyboardShortcuts(e) {
       case 'M':
         e.preventDefault();
         toggleMute();
+        showActionIndicator(DOM.videoElement.muted ? 'fa-volume-xmark' : 'fa-volume-high', DOM.videoElement.muted ? 'Muted' : 'Unmuted');
+        break;
+      case ',':
+      case '<':
+        e.preventDefault();
+        DOM.videoElement.playbackRate = Math.max(0.25, DOM.videoElement.playbackRate - 0.25);
+        DOM.speedLabel.textContent = `${DOM.videoElement.playbackRate}x`;
+        showActionIndicator('fa-gauge-high', `${DOM.videoElement.playbackRate}x Speed`);
+        break;
+      case '.':
+      case '>':
+        e.preventDefault();
+        DOM.videoElement.playbackRate = Math.min(2.5, DOM.videoElement.playbackRate + 0.25);
+        DOM.speedLabel.textContent = `${DOM.videoElement.playbackRate}x`;
+        showActionIndicator('fa-gauge-high', `${DOM.videoElement.playbackRate}x Speed`);
         break;
       case 'a':
       case 'A':
@@ -1738,6 +1931,7 @@ function handleKeyboardShortcuts(e) {
         if (state.currentDetails) openDownloadModal(state.currentDetails, state.activeDub);
         break;
     }
+    resetControlsTimer();
   }
 }
 

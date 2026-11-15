@@ -286,6 +286,43 @@
       <!-- Subtitle Display Overlay (custom high-clarity typography; duplicate native subtitle suppressed) -->
       <div class="custom-subtitle-overlay" id="subtitleOverlay"></div>
 
+      <!-- YouTube Style Screen Gesture Layer & Double-Tap Seek Indicators -->
+      <div class="player-screen-overlay" id="playerScreenOverlay">
+        <!-- Double Tap Rewind (Left Side) -->
+        <div class="yt-seek-side yt-seek-left" id="ytSeekLeft">
+          <div class="yt-seek-ripple"></div>
+          <div class="yt-seek-content">
+            <div class="yt-seek-icons">
+              <i class="fa-solid fa-play fa-rotate-180"></i>
+              <i class="fa-solid fa-play fa-rotate-180"></i>
+              <i class="fa-solid fa-play fa-rotate-180"></i>
+            </div>
+            <span class="yt-seek-text" id="ytSeekLeftText">10 seconds</span>
+          </div>
+        </div>
+
+        <!-- Center Pop Action Bubble (Play/Pause/Speed/Volume) -->
+        <div class="yt-action-indicator" id="ytActionIndicator">
+          <div class="yt-action-bubble" id="ytActionBubble">
+            <i id="ytActionIcon" class="fa-solid fa-play"></i>
+            <span id="ytActionText" class="yt-action-text" style="display:none;"></span>
+          </div>
+        </div>
+
+        <!-- Double Tap Forward (Right Side) -->
+        <div class="yt-seek-side yt-seek-right" id="ytSeekRight">
+          <div class="yt-seek-ripple"></div>
+          <div class="yt-seek-content">
+            <div class="yt-seek-icons">
+              <i class="fa-solid fa-play"></i>
+              <i class="fa-solid fa-play"></i>
+              <i class="fa-solid fa-play"></i>
+            </div>
+            <span class="yt-seek-text" id="ytSeekRightText">10 seconds</span>
+          </div>
+        </div>
+      </div>
+
       <!-- Player Top Bar -->
       <div class="player-top-bar" id="playerTopBar">
         <button class="player-btn-back" id="playerCloseBtn" title="Back to Details (Esc)">

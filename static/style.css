@@ -1538,6 +1538,179 @@ video::cue {
   gap: 4px;
 }
 
+/* ----------------- YouTube Style Gesture & Seek System ----------------- */
+.player-screen-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 12;
+  display: flex;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: manipulation;
+  cursor: pointer;
+}
+
+/* Left & Right Double Tap Seek Zones */
+.yt-seek-side {
+  flex: 1;
+  height: 100%;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.25s ease;
+  overflow: hidden;
+}
+
+.yt-seek-side.active {
+  opacity: 1;
+}
+
+/* Semi-circular ripple background */
+.yt-seek-left .yt-seek-ripple {
+  position: absolute;
+  top: -15%;
+  bottom: -15%;
+  left: -25%;
+  width: 125%;
+  border-radius: 0 100% 100% 0 / 0 50% 50% 0;
+  background: radial-gradient(circle at left center, rgba(255, 255, 255, 0.22) 0%, rgba(255, 255, 255, 0.08) 55%, transparent 85%);
+  pointer-events: none;
+  transform: scale(0.8);
+  transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.yt-seek-right .yt-seek-ripple {
+  position: absolute;
+  top: -15%;
+  bottom: -15%;
+  right: -25%;
+  width: 125%;
+  border-radius: 100% 0 0 100% / 50% 0 0 50%;
+  background: radial-gradient(circle at right center, rgba(255, 255, 255, 0.22) 0%, rgba(255, 255, 255, 0.08) 55%, transparent 85%);
+  pointer-events: none;
+  transform: scale(0.8);
+  transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.yt-seek-side.active .yt-seek-ripple {
+  transform: scale(1);
+}
+
+.yt-seek-content {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  color: #ffffff;
+  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.8);
+}
+
+.yt-seek-icons {
+  display: flex;
+  gap: 6px;
+  font-size: 1.5rem;
+  color: #ffffff;
+}
+
+.yt-seek-side.active.yt-seek-left .yt-seek-icons i {
+  animation: ytArrowPulseLeft 0.5s infinite alternate ease-in-out;
+}
+.yt-seek-side.active.yt-seek-right .yt-seek-icons i {
+  animation: ytArrowPulseRight 0.5s infinite alternate ease-in-out;
+}
+
+@keyframes ytArrowPulseLeft {
+  0% { transform: translateX(5px); opacity: 0.5; }
+  100% { transform: translateX(-5px); opacity: 1; }
+}
+
+@keyframes ytArrowPulseRight {
+  0% { transform: translateX(-5px); opacity: 0.5; }
+  100% { transform: translateX(5px); opacity: 1; }
+}
+
+.yt-seek-text {
+  font-size: 0.95rem;
+  font-weight: 700;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  background: rgba(0, 0, 0, 0.4);
+  padding: 4px 12px;
+  border-radius: 14px;
+  backdrop-filter: blur(4px);
+}
+
+/* Center Pop Action Indicator (Play, Pause, Speed, Volume) */
+.yt-action-indicator {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  z-index: 18;
+}
+
+.yt-action-bubble {
+  width: 78px;
+  height: 78px;
+  border-radius: 50%;
+  background: rgba(10, 14, 23, 0.8);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 2px solid rgba(255, 255, 255, 0.28);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.65);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: #ffffff;
+  font-size: 2.1rem;
+  opacity: 0;
+  transform: scale(0.65);
+  pointer-events: none;
+  transition: opacity 0.2s ease, transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.yt-action-bubble.show {
+  opacity: 1;
+  transform: scale(1);
+  animation: ytActionPop 0.55s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+}
+
+@keyframes ytActionPop {
+  0% {
+    opacity: 0;
+    transform: scale(0.6);
+  }
+  30% {
+    opacity: 1;
+    transform: scale(1.15);
+  }
+  70% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.25);
+  }
+}
+
+.yt-action-text {
+  font-size: 0.75rem;
+  font-weight: 700;
+  margin-top: 3px;
+  letter-spacing: 0.5px;
+}
+
 /* Center Overlay */
 .player-center-overlay {
   position: absolute;
