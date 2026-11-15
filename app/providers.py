@@ -357,6 +357,58 @@ class HiAnimeProvider:
             return []
 
 
+# ----------------- Animerulz Provider -----------------
+class AnimerulzProvider:
+    """Animerulz (animerulz.com.in) - Best source for Indian Anime sub/dub"""
+    BASE_URL = "https://animerulz.com.in/"
+
+    def __init__(self, http_client: httpx.AsyncClient):
+        self.http_client = http_client
+
+    async def search(self, query: str) -> List[dict]:
+        try:
+            url = f"{self.BASE_URL}?s={urllib.parse.quote(query)}"
+            headers = {
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+            }
+            res = await self.http_client.get(url, headers=headers, timeout=6.0)
+            if res.status_code != 200:
+                return []
+            soup = BeautifulSoup(res.text, "html.parser")
+            results = []
+            for item in soup.select("article, .post-item, .item, .featured, .entry"):
+                a_tag = item.select_one("a")
+                if not a_tag:
+                    continue
+                href = a_tag.get("href") or ""
+                title_elem = item.select_one("h2, h3, .title, .entry-title") or a_tag
+                title = title_elem.get_text(strip=True) if title_elem else ""
+                if not href or not title:
+                    continue
+                
+                img_tag = item.select_one("img")
+                poster = ""
+                if img_tag:
+                    poster = img_tag.get("src") or img_tag.get("data-src") or ""
+                
+                results.append({
+                    "id": f"animerulz_{urllib.parse.quote(href, safe='')}",
+                    "title": clean_title(title),
+                    "raw_title": title,
+                    "poster_url": poster,
+                    "is_series": True,
+                    "year": "2024",
+                    "rating": "8.7",
+                    "duration": "24m",
+                    "genres": ["Anime", "Animation"],
+                    "provider": "Animerulz"
+                })
+            return results
+        except Exception as e:
+            logger.warning(f"Animerulz search error: {e}")
+            return []
+
+
 # ----------------- Aggregated Multi-Search Engine -----------------
 class SearchAggregator:
     def __init__(self, moviebox_client: MovieBoxClient):
@@ -364,13 +416,14 @@ class SearchAggregator:
 
     async def multi_search(self, http_client: httpx.AsyncClient, query: str, provider: str = "all") -> List[dict]:
         """
-        Search across MovieBox, Dramachi, 4KHDHub, AnimeWorld, and HiAnime concurrently.
+        Search across MovieBox, Dramachi, 4KHDHub, AnimeWorld, HiAnime, and Animerulz concurrently.
         """
         tasks = []
         dramachi = DramachiProvider(http_client)
         fourkhd = FourKHdHubProvider(http_client)
         animeworld = AnimeWorldProvider(http_client)
         hianime = HiAnimeProvider(http_client)
+        animerulz = AnimerulzProvider(http_client)
 
         # 1. MovieBox search
         if provider in ["all", "moviebox"]:
@@ -401,6 +454,10 @@ class SearchAggregator:
         # 5. HiAnime search
         if provider in ["all", "anime", "hianime"]:
             tasks.append(hianime.search(query))
+
+        # 6. Animerulz search
+        if provider in ["all", "anime", "animerulz"]:
+            tasks.append(animerulz.search(query))
 
         results_lists = await asyncio.gather(*tasks, return_exceptions=True)
         

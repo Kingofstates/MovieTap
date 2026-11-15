@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#080c14"/>
+      <stop offset="50%" stop-color="#0f172a"/>
+      <stop offset="100%" stop-color="#050811"/>
+    </linearGradient>
+    <linearGradient id="borderGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#38bdf8"/>
+      <stop offset="50%" stop-color="#818cf8"/>
+      <stop offset="100%" stop-color="#f43f5e"/>
+    </linearGradient>
+    <linearGradient id="textM" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#38bdf8"/>
+      <stop offset="100%" stop-color="#0284c7"/>
+    </linearGradient>
+    <linearGradient id="textT" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#fb7185"/>
+      <stop offset="100%" stop-color="#e11d48"/>
+    </linearGradient>
+    <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="8" stdDeviation="16" flood-color="#38bdf8" flood-opacity="0.3"/>
+    </filter>
+  </defs>
+
+  <!-- Background Squircle with Glow -->
+  <rect x="32" y="32" width="448" height="448" rx="112" fill="url(#bgGrad)" stroke="url(#borderGrad)" stroke-width="16" filter="url(#glow)"/>
+
+  <!-- Inner Ambient Highlights -->
+  <circle cx="140" cy="140" r="80" fill="#38bdf8" opacity="0.15" filter="blur(40px)"/>
+  <circle cx="360" cy="360" r="90" fill="#f43f5e" opacity="0.12" filter="blur(40px)"/>
+
+  <!-- Stylized MT Monogram -->
+  <g font-family="'Outfit', 'Montserrat', 'Inter', -apple-system, sans-serif" font-weight="900" font-size="210" letter-spacing="-8">
+    <!-- 'M' letter in Neon Cyan -->
+    <text x="80" y="335" fill="url(#textM)" filter="drop-shadow(0 6px 14px rgba(2, 132, 199, 0.6))">M</text>
+    <!-- 'T' letter in Electric Rose -->
+    <text x="260" y="335" fill="url(#textT)" filter="drop-shadow(0 6px 14px rgba(225, 29, 72, 0.6))">T</text>
+  </g>
+
+  <!-- Small Cinema Play Icon Dot -->
+  <polygon points="410,130 428,142 410,154" fill="#38bdf8" filter="drop-shadow(0 0 8px #38bdf8)"/>
+</svg>

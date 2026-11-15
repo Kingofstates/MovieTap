@@ -7,6 +7,7 @@ high-performance video streaming proxy with HTTP Range support, and direct in-br
 import os
 import re
 import time
+import base64
 import asyncio
 import tempfile
 import logging
@@ -112,16 +113,33 @@ def mcu_sort_key(item):
 async def fetch_marvel_catalog() -> list:
     loop = asyncio.get_event_loop()
     mcu_search_terms = [
-        "Deadpool", "The Marvels", "Guardians of the Galaxy", "Ant-Man",
-        "Wakanda Forever", "Love and Thunder", "Multiverse of Madness",
-        "Spider-Man: No Way Home", "Eternals", "Shang-Chi", "Black Widow",
-        "Avengers: Endgame", "Captain Marvel", "Avengers: Infinity War", "Black Panther",
-        "Thor: Ragnarok", "Spider-Man: Homecoming", "Doctor Strange",
-        "Captain America: Civil War", "Age of Ultron", "The Winter Soldier", "Iron Man 3",
+        # 2024 - 2026 Movies & Series
+        "Spider-Man: Brand New Day", "Avengers: Doomsday", "Daredevil: Born Again",
+        "Thunderbolts", "Captain America: Brave New World", "Ironheart", "Eyes of Wakanda",
+        "What If", "Agatha All Along", "Deadpool", "X-Men 97", "Echo",
+        # 2023
+        "The Marvels", "Loki", "Secret Invasion", "Guardians of the Galaxy Vol. 3", "Quantumania",
+        # 2022
+        "Black Panther: Wakanda Forever", "She-Hulk", "Moon Knight", "Ms. Marvel",
+        "Thor: Love and Thunder", "Multiverse of Madness", "Werewolf by Night",
+        # 2021
+        "Hawkeye", "Spider-Man: No Way Home", "Eternals", "Shang-Chi",
+        "Black Widow", "The Falcon and the Winter Soldier", "WandaVision",
+        # 2018 - 2019
+        "Spider-Man: Far From Home", "Avengers: Endgame", "Captain Marvel",
+        "Ant-Man and the Wasp", "Avengers: Infinity War", "Black Panther", "The Punisher",
+        # 2015 - 2017
+        "Thor: Ragnarok", "Spider-Man: Homecoming", "Guardians of the Galaxy Vol. 2",
+        "Doctor Strange", "Captain America: Civil War", "Ant-Man", "Avengers: Age of Ultron",
+        "Daredevil", "Jessica Jones", "Luke Cage", "Iron Fist", "The Defenders",
+        # 2013 - 2014
+        "Guardians of the Galaxy", "Captain America: The Winter Soldier", "Thor: The Dark World",
+        "Agents of S.H.I.E.L.D.", "Iron Man 3",
+        # 2008 - 2012 (First releases)
         "The Avengers", "Captain America: The First Avenger", "Thor",
         "Iron Man 2", "The Incredible Hulk", "Iron Man"
     ]
-    sem = asyncio.Semaphore(8)
+    sem = asyncio.Semaphore(10)
 
     async def search_term(term):
         async with sem:
@@ -379,7 +397,7 @@ async def get_vtt_subtitle(url: str = Query(...)):
 async def download_media(
     request: Request,
     url: str = Query(...),
-    filename: Optional[str] = Query("MovieTap_Video"),
+    filename: Optional[str] = Query("Room206_Video"),
     subtitle_url: Optional[str] = Query(None),
     cookie: Optional[str] = Query(None)
 ):
@@ -387,12 +405,19 @@ async def download_media(
     Stream video with Content-Disposition attachment so the browser downloads
     the file directly to the user's Downloads directory.
     If subtitle_url is provided, ffmpeg muxes the subtitles directly into the MP4 file on the fly!
+    If the stream is DASH (.mpd), ffmpeg remuxes it into a unified .mp4 file!
     """
-    clean_fn = "".join(c for c in (filename or "MovieTap_Video") if c.isalnum() or c in " ._-").strip()
+    clean_fn = "".join(c for c in (filename or "Room206_Video") if c.isalnum() or c in " ._-").strip()
     if not clean_fn.lower().endswith(".mp4") and not clean_fn.lower().endswith(".mkv"):
         clean_fn += ".mp4"
 
-    # If subtitle URL is provided, mux directly into the MP4 container via ffmpeg
+    ffmpeg_headers = f"User-Agent: {client.user_agent}\r\n"
+    if ".mpd" in url.lower() or "dash" in url.lower():
+        ffmpeg_headers += f"Referer: {STREAM_REFERER}\r\n"
+    if cookie:
+        ffmpeg_headers += f"Cookie: {cookie}\r\n"
+
+    # Option 1: Subtitle provided -> Mux video and subtitle into single MP4
     if subtitle_url and subtitle_url.strip() and not subtitle_url.strip().lower().startswith("none"):
         try:
             async with httpx.AsyncClient(timeout=15.0) as sub_client:
@@ -406,13 +431,13 @@ async def download_media(
 
                 ffmpeg_cmd = [
                     "ffmpeg", "-y",
-                    "-headers", f"User-Agent: {client.user_agent}\r\n",
+                    "-headers", ffmpeg_headers,
                     "-i", url,
                     "-i", temp_sub_path,
                     "-c:v", "copy",
                     "-c:a", "copy",
                     "-c:s", "mov_text",
-                    "-movflags", "frag_keyframe+empty_moov+default_base_moof",
+                    "-movflags", "+frag_keyframe+empty_moov+default_base_moof",
                     "-f", "mp4",
                     "pipe:1"
                 ]
@@ -455,7 +480,53 @@ async def download_media(
         except Exception as e:
             logger.warning(f"FFmpeg subtitle muxing error, falling back to direct stream: {e}")
 
-    # Direct streaming fallback / single video file download
+    # Option 2: DASH stream without subtitle -> Remux DASH into unified MP4
+    if ".mpd" in url.lower() or "dash" in url.lower():
+        try:
+            ffmpeg_cmd = [
+                "ffmpeg", "-y",
+                "-headers", ffmpeg_headers,
+                "-i", url,
+                "-c:v", "copy",
+                "-c:a", "copy",
+                "-movflags", "+frag_keyframe+empty_moov+default_base_moof",
+                "-f", "mp4",
+                "pipe:1"
+            ]
+            proc = await asyncio.create_subprocess_exec(
+                *ffmpeg_cmd,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE
+            )
+
+            async def dash_download_stream():
+                try:
+                    while True:
+                        chunk = await proc.stdout.read(128 * 1024)
+                        if not chunk:
+                            break
+                        yield chunk
+                finally:
+                    try:
+                        if proc.returncode is None:
+                            proc.terminate()
+                            await proc.wait()
+                    except Exception:
+                        pass
+
+            return StreamingResponse(
+                dash_download_stream(),
+                status_code=200,
+                headers={
+                    "Content-Disposition": f'attachment; filename="{clean_fn}"',
+                    "Content-Type": "video/mp4",
+                },
+                media_type="video/mp4"
+            )
+        except Exception as ex:
+            logger.warning(f"DASH ffmpeg remux download failed: {ex}")
+
+    # Option 3: Direct MP4 streaming fallback
     try:
         req_headers = {
             "User-Agent": client.user_agent,
@@ -532,6 +603,72 @@ async def download_subtitle(url: str = Query(...), filename: Optional[str] = Que
         logger.error(f"Subtitle download error: {e}")
         return JSONResponse(status_code=500, content={"error": str(e)})
 
+# ----------------- DASH Segment Proxy -----------------
+
+@app.get("/api/dash/segment/{token}/{filename}")
+async def dash_segment_proxy(
+    request: Request,
+    token: str,
+    filename: str
+):
+    """
+    Proxies relative DASH segments (.m4s, init, chunks) with proper upstream headers and cookies.
+    """
+    try:
+        decoded = base64.urlsafe_b64decode(token.encode()).decode()
+        base_dir, cookie = decoded.split("::", 1) if "::" in decoded else (decoded, "")
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid DASH segment token")
+
+    target_url = f"{base_dir}{filename}"
+    req_headers = {
+        "User-Agent": client.user_agent,
+        "Accept": "*/*",
+        "Referer": STREAM_REFERER
+    }
+    if cookie:
+        req_headers["Cookie"] = cookie
+
+    range_header = request.headers.get("range")
+    if range_header:
+        req_headers["Range"] = range_header
+
+    try:
+        h_client = get_http_client()
+        upstream_req = h_client.build_request("GET", target_url, headers=req_headers)
+        upstream_resp = await h_client.send(upstream_req, stream=True)
+
+        resp_headers = {
+            "Accept-Ranges": "bytes",
+            "Content-Type": upstream_resp.headers.get("content-type", "video/iso.segment"),
+            "Access-Control-Allow-Origin": "*",
+        }
+        if "content-range" in upstream_resp.headers:
+            resp_headers["Content-Range"] = upstream_resp.headers["content-range"]
+        if "content-length" in upstream_resp.headers:
+            resp_headers["Content-Length"] = upstream_resp.headers["content-length"]
+
+        status_code = upstream_resp.status_code
+        if range_header and status_code == 200:
+            status_code = 206
+
+        async def seg_gen():
+            try:
+                async for chunk in upstream_resp.aiter_bytes(chunk_size=64 * 1024):
+                    yield chunk
+            finally:
+                await upstream_resp.aclose()
+
+        return StreamingResponse(
+            seg_gen(),
+            status_code=status_code,
+            headers=resp_headers,
+            media_type=resp_headers["Content-Type"]
+        )
+    except Exception as e:
+        logger.error(f"DASH segment proxy error for {target_url}: {e}")
+        return JSONResponse(status_code=502, content={"error": str(e)})
+
 # ----------------- Streaming Proxy (HTTP Range Support) -----------------
 
 @app.get("/api/stream")
@@ -543,6 +680,7 @@ async def stream_proxy(
     """
     Streaming proxy with full HTTP 206 Partial Content byte-range support.
     Enables native HTML5 <video> seeking, buffering, and scrub without CORS/428 errors.
+    Automatically rewrites DASH MPD manifests with <BaseURL> pointing to /api/dash/segment/.
     """
     h_client = get_http_client()
 
@@ -551,7 +689,6 @@ async def stream_proxy(
         "User-Agent": client.user_agent,
         "Accept": "*/*",
     }
-    # Direct media CDN rejects STREAM_REFERER with 429 (as documented in MovieBox-TUI adapt.rs line 597)
     if ".mpd" in url.lower() or "dash" in url.lower():
         req_headers["Referer"] = STREAM_REFERER
     
@@ -578,6 +715,31 @@ async def stream_proxy(
             req_headers["Referer"] = STREAM_REFERER
             upstream_req = h_client.build_request("GET", url, headers=req_headers)
             upstream_resp = await h_client.send(upstream_req, stream=True)
+
+        # Special handling for DASH MPD manifests: Rewrite <BaseURL> to proxy segments
+        if ".mpd" in url.lower() or "xml" in upstream_resp.headers.get("content-type", "").lower():
+            body_bytes = await upstream_resp.aread()
+            body_text = body_bytes.decode("utf-8", errors="ignore")
+
+            base_dir = url.rsplit("/", 1)[0] + "/"
+            token_payload = f"{base_dir}::{cookie or ''}"
+            token = base64.urlsafe_b64encode(token_payload.encode()).decode()
+
+            proxy_segment_base = f"/api/dash/segment/{token}/"
+            if "<BaseURL>" not in body_text and "<MPD" in body_text:
+                body_text = re.sub(r"(<MPD[^>]*>)", r"\1\n\t<BaseURL>" + proxy_segment_base + "</BaseURL>", body_text, count=1)
+
+            return Response(
+                content=body_text,
+                status_code=200,
+                media_type="application/dash+xml",
+                headers={
+                    "Content-Type": "application/dash+xml",
+                    "Access-Control-Allow-Origin": "*",
+                    "Access-Control-Allow-Methods": "*",
+                    "Access-Control-Allow-Headers": "*"
+                }
+            )
 
         # Build response headers matching upstream
         response_headers = {

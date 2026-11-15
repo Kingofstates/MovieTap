@@ -461,6 +461,9 @@ function initEventListeners() {
   DOM.videoElement.addEventListener('canplay', () => {
     DOM.playerSpinner.classList.remove('visible');
   });
+  DOM.videoElement.addEventListener('playing', () => {
+    DOM.playerSpinner.classList.remove('visible');
+  });
   DOM.videoElement.addEventListener('ended', handleVideoEnded);
 
   DOM.playerContainer.addEventListener('mousemove', resetControlsTimer);
@@ -1045,6 +1048,9 @@ function executeDownload() {
   const filename = `${mediaTitle}_[${lang}]_[${qual}]${subLang}`.replace(/[/\\?%*:|"<>]/g, '_');
 
   let downloadUrl = `/api/download?url=${encodeURIComponent(state.downloadStream.url)}&filename=${encodeURIComponent(filename)}`;
+  if (state.downloadStream.sign_cookie) {
+    downloadUrl += `&cookie=${encodeURIComponent(state.downloadStream.sign_cookie)}`;
+  }
   if (state.downloadCaption && state.downloadCaption.url) {
     downloadUrl += `&subtitle_url=${encodeURIComponent(state.downloadCaption.url)}`;
   }
@@ -1144,13 +1150,50 @@ function playStream(streamUrl, startTime = 0) {
   }
   DOM.subtitleOverlay.textContent = '';
 
-  DOM.videoElement.src = streamUrl;
-  DOM.videoElement.currentTime = startTime;
+  const isDash = streamUrl.toLowerCase().includes('.mpd') || 
+    (state.activeStream && (
+      (state.activeStream.format && state.activeStream.format.toUpperCase() === 'DASH') || 
+      (state.activeStream.url && state.activeStream.url.toLowerCase().includes('.mpd'))
+    ));
 
-  DOM.videoElement.play().catch(err => {
-    console.warn("Autoplay blocked or awaiting gesture:", err);
-    DOM.playerBigPlayBtn.classList.add('visible');
-  });
+  if (window.dashPlayer) {
+    try {
+      window.dashPlayer.reset();
+      window.dashPlayer = null;
+    } catch (e) {
+      console.warn("dashPlayer reset error:", e);
+    }
+  }
+
+  if (isDash && window.dashjs) {
+    DOM.videoElement.removeAttribute('src');
+    DOM.videoElement.load();
+    const player = dashjs.MediaPlayer().create();
+    player.updateSettings({
+      streaming: {
+        lowLatencyEnabled: false,
+        abr: {
+          autoSwitchBitrate: { video: true }
+        }
+      }
+    });
+    player.initialize(DOM.videoElement, streamUrl, true);
+    if (startTime > 0) {
+      player.on(dashjs.MediaPlayer.events.CAN_PLAY, function onCanPlay() {
+        player.off(dashjs.MediaPlayer.events.CAN_PLAY, onCanPlay);
+        player.seek(startTime);
+      });
+    }
+    window.dashPlayer = player;
+  } else {
+    DOM.videoElement.src = streamUrl;
+    DOM.videoElement.currentTime = startTime;
+
+    DOM.videoElement.play().catch(err => {
+      console.warn("Autoplay blocked or awaiting gesture:", err);
+      DOM.playerBigPlayBtn.classList.add('visible');
+    });
+  }
 
   if (startTime > 0) {
     showToast(`Resumed from ${formatTime(startTime)}`);
@@ -1218,11 +1261,7 @@ async function switchAudioLanguageInPlayer(newDub) {
       : [newDub];
     populateAudioDrawer(allDubs, newDub.id);
 
-    DOM.videoElement.src = chosenStream.proxy_url;
-    DOM.videoElement.currentTime = currentTimestamp;
-    if (wasPlaying) {
-      DOM.videoElement.play();
-    }
+    playStream(chosenStream.proxy_url, currentTimestamp);
 
     loadSubtitlesForPlayer(newDub.id, chosenStream.resource_id);
     showToast(`Now playing in ${newDub.language}`);
@@ -1396,19 +1435,24 @@ function switchQuality(newStream) {
   });
   DOM.qualityMenu.classList.remove('active');
 
-  DOM.videoElement.src = newStream.proxy_url;
-  DOM.videoElement.currentTime = currentTime;
-  if (wasPlaying) {
-    DOM.videoElement.play();
-  }
+  playStream(newStream.proxy_url, currentTime);
   showToast(`Quality switched to ${newStream.quality}`);
 }
 
 // ----------------- Core Player Controls & Seekbar -----------------
 function closePlayer() {
   saveCurrentProgress();
+  if (window.dashPlayer) {
+    try {
+      window.dashPlayer.reset();
+      window.dashPlayer = null;
+    } catch (e) {
+      console.warn("dashPlayer reset error:", e);
+    }
+  }
   DOM.videoElement.pause();
-  DOM.videoElement.src = '';
+  DOM.videoElement.removeAttribute('src');
+  DOM.videoElement.load();
   DOM.subtitleOverlay.textContent = '';
   DOM.playerModal.classList.remove('active');
   closeAudioSubDrawer();
