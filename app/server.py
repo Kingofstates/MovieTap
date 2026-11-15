@@ -6,6 +6,9 @@ high-performance video streaming proxy with HTTP Range support, and direct in-br
 
 import os
 import re
+import time
+import asyncio
+import tempfile
 import logging
 from typing import Optional
 from pathlib import Path
@@ -24,7 +27,7 @@ from app.providers import SearchAggregator, DramachiProvider, FourKHdHubProvider
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
 logger = logging.getLogger("movietap.server")
 
-app = FastAPI(title="MovieTap Web Streamer", version="3.0.0")
+app = FastAPI(title="Room 206 Web Streamer", version="3.0.0")
 
 # Enable CORS for all origins
 app.add_middleware(
@@ -62,10 +65,133 @@ def get_http_client() -> httpx.AsyncClient:
         )
     return http_client
 
+# In-memory cache for fast response times
+HOMEPAGE_CACHE = {}
+HOMEPAGE_CACHE_TIME = {}
+CACHE_TTL = 900  # 15 minutes
+
+def get_cached_catalog(key: str) -> Optional[list]:
+    now = time.time()
+    if key in HOMEPAGE_CACHE and (now - HOMEPAGE_CACHE_TIME.get(key, 0) < CACHE_TTL):
+        return HOMEPAGE_CACHE[key]
+    return None
+
+def set_cached_catalog(key: str, data: list):
+    HOMEPAGE_CACHE[key] = data
+    HOMEPAGE_CACHE_TIME[key] = time.time()
+
+# MCU release order (Latest on top, down to Iron Man 2008 at the bottom)
+MCU_CHRONOLOGY = [
+    'brand new day', 'doomsday', 'brave new world', 'thunderbolts', 'deadpool & wolverine',
+    'the marvels', 'guardians of the galaxy vol. 3', 'quantumania',
+    'wakanda forever', 'love and thunder', 'multiverse of madness', 'no way home',
+    'eternals', 'shang-chi', 'black widow', 'far from home', 'endgame', 'captain marvel',
+    'ant-man and the wasp', 'infinity war', 'black panther', 'ragnarok', 'homecoming',
+    'guardians of the galaxy vol. 2', 'doctor strange', 'civil war', 'ant-man',
+    'age of ultron', 'the winter soldier', 'iron man 3', 'the avengers',
+    'first avenger', 'thor', 'iron man 2', 'the incredible hulk', 'iron man'
+]
+
+def mcu_sort_key(item):
+    t = (item.get('title') or '').lower()
+    y_str = str(item.get('year') or '2015')
+    try:
+        y = int(y_str[:4])
+    except Exception:
+        y = 2015
+    
+    # Iron Man (2008) is the absolute first MCU film, placed at the very bottom!
+    if 'iron man' in t and y == 2008 and '2' not in t and '3' not in t:
+        return 999999
+    if 'incredible hulk' in t and y == 2008:
+        return 999990
+    
+    # Otherwise sort descending by release year (latest on top)
+    return -y
+
+async def fetch_marvel_catalog() -> list:
+    loop = asyncio.get_event_loop()
+    mcu_search_terms = [
+        "Deadpool", "The Marvels", "Guardians of the Galaxy", "Ant-Man",
+        "Wakanda Forever", "Love and Thunder", "Multiverse of Madness",
+        "Spider-Man: No Way Home", "Eternals", "Shang-Chi", "Black Widow",
+        "Avengers: Endgame", "Captain Marvel", "Avengers: Infinity War", "Black Panther",
+        "Thor: Ragnarok", "Spider-Man: Homecoming", "Doctor Strange",
+        "Captain America: Civil War", "Age of Ultron", "The Winter Soldier", "Iron Man 3",
+        "The Avengers", "Captain America: The First Avenger", "Thor",
+        "Iron Man 2", "The Incredible Hulk", "Iron Man"
+    ]
+    sem = asyncio.Semaphore(8)
+
+    async def search_term(term):
+        async with sem:
+            try:
+                res = await loop.run_in_executor(None, client.search, term, 1)
+                return res[:2] if res else []
+            except Exception:
+                return []
+
+    results = await asyncio.gather(*[search_term(t) for t in mcu_search_terms])
+    raw_items = [item for sublist in results for item in sublist]
+    
+    unique = []
+    seen = set()
+    for r in raw_items:
+        sid = r.get("id")
+        if sid and sid not in seen:
+            seen.add(sid)
+            unique.append(r)
+            
+    unique.sort(key=mcu_sort_key)
+    return unique
+
+async def fetch_anime_catalog() -> list:
+    loop = asyncio.get_event_loop()
+    mb_items = []
+    try:
+        mb_items = await loop.run_in_executor(None, client.get_homepage, "3", 1)
+    except Exception:
+        pass
+    
+    popular_queries = ["Solo Leveling", "Demon Slayer", "Attack on Titan", "Jujutsu Kaisen", "Naruto", "One Piece", "Bleach", "Chainsaw Man"]
+    popular_items = []
+    for q in popular_queries:
+        try:
+            res = await loop.run_in_executor(None, client.search, q, 1)
+            if res:
+                popular_items.append(res[0])
+        except Exception:
+            pass
+
+    combined = []
+    seen = set()
+    for item in popular_items + mb_items:
+        sid = item.get("id")
+        if sid and sid not in seen:
+            seen.add(sid)
+            combined.append(item)
+    return combined
+
+async def prewarm_cache():
+    loop = asyncio.get_event_loop()
+    for tab in ["all", "movies", "series", "anime", "marvel"]:
+        try:
+            if tab == "marvel":
+                items = await fetch_marvel_catalog()
+            elif tab == "anime":
+                items = await fetch_anime_catalog()
+            else:
+                items = await loop.run_in_executor(None, client.get_homepage, tab, 1)
+            set_cached_catalog(f"{tab}_1", items)
+            logger.info(f"Pre-warmed cache for tab '{tab}': {len(items)} items")
+        except Exception as e:
+            logger.warning(f"Failed pre-warming tab '{tab}': {e}")
+
 @app.on_event("startup")
 async def startup_event():
     get_http_client()
-    logger.info("MovieTap Web Server started")
+    logger.info("Room 206 Web Server started")
+    asyncio.create_task(prewarm_cache())
 
 @app.on_event("shutdown")
 async def shutdown_event():
@@ -73,19 +199,41 @@ async def shutdown_event():
     if http_client:
         await http_client.aclose()
         http_client = None
-        await http_client.aclose()
 
 # ----------------- API Endpoints -----------------
 
 @app.get("/api/homepage")
 async def get_homepage(tab: str = "2", page: int = 1):
-    """Fetch featured trending titles from MovieBox homepage"""
+    """Fetch featured trending titles from Room 206 catalog (Cached for instantaneous load)"""
+    cache_key = f"{tab.lower()}_{page}"
+    cached = get_cached_catalog(cache_key)
+    if cached is not None:
+        return {"success": True, "count": len(cached), "items": cached, "cached": True}
+
     try:
-        items = client.get_homepage(tab_id=tab, page=page)
-        return {"success": True, "count": len(items), "items": items}
+        if tab.lower() == "marvel":
+            items = await fetch_marvel_catalog()
+        elif tab.lower() in ["anime", "animes", "animation"]:
+            items = await fetch_anime_catalog()
+        else:
+            loop = asyncio.get_event_loop()
+            items = await loop.run_in_executor(None, client.get_homepage, tab, page)
+            
+        set_cached_catalog(cache_key, items)
+        return {"success": True, "count": len(items), "items": items, "cached": False}
     except Exception as e:
-        logger.error(f"Homepage error: {e}")
+        logger.error(f"Homepage error for tab {tab}: {e}")
         return JSONResponse(status_code=500, content={"success": False, "error": str(e)})
+
+@app.get("/api/marvel")
+async def get_marvel_movies():
+    """Returns Marvel MCU titles in release order: Latest on top, Iron Man (2008) at the bottom!"""
+    cached = get_cached_catalog("marvel_1")
+    if cached is not None:
+        return {"success": True, "count": len(cached), "items": cached}
+    items = await fetch_marvel_catalog()
+    set_cached_catalog("marvel_1", items)
+    return {"success": True, "count": len(items), "items": items}
 
 @app.get("/api/search")
 async def search_titles(q: str = Query(..., min_length=1), provider: str = "all", page: int = 1):

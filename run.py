@@ -16,9 +16,9 @@ if __name__ == "__main__":
     port = int(os.environ.get("PORT", "8000"))
     
     print("=" * 65)
-    print(" 🎬 MovieBox Web - Cinema Streaming & Search Platform")
+    print(" 🎬 Room 206 - Cinema & Anime Streaming Platform")
     print(f" 🌐 Access Web UI: http://localhost:{port}")
-    print(" ⚡ Powered by MovieBox Native Stream Engine & Proxy")
+    print(" ⚡ Powered by Room 206 High-Speed Native Stream Engine")
     print("=" * 65)
     
     uvicorn.run("app.server:app", host=host, port=port, reload=False, log_level="info")

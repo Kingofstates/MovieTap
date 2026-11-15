@@ -1,5 +1,5 @@
 /**
- * MovieTap Web - Client-side Application (v3.0)
+ * Room 206 - Cinema & Anime Streaming Platform (v3.0)
  * Features:
  * - AnimeWorld-inspired Centered Hero with Wallpaper Crossfade Loop (hero_1.jpg to hero_10.jpg)
  * - Multi-Engine Search (MovieBox, Dramachi, 4KHDHub, All) with Rich Poster Suggestions
@@ -31,6 +31,8 @@ const state = {
   activeFilter: 'all',
   activeProvider: 'all',
   catalogItems: [],
+  tabCache: {},
+  isLoadingCatalog: false,
   currentDetails: null,
   activeDub: null,
   selectedSeason: 1,
@@ -39,8 +41,8 @@ const state = {
   activeStream: null,
   currentCaptions: [],
   activeCaption: null,
-  watchHistory: JSON.parse(localStorage.getItem('movietap_history') || localStorage.getItem('moviebox_history') || '[]'),
-  watchlist: JSON.parse(localStorage.getItem('movietap_watchlist') || localStorage.getItem('moviebox_watchlist') || '[]'),
+  watchHistory: JSON.parse(localStorage.getItem('room206_history') || localStorage.getItem('movietap_history') || localStorage.getItem('moviebox_history') || '[]'),
+  watchlist: JSON.parse(localStorage.getItem('room206_watchlist') || localStorage.getItem('movietap_watchlist') || localStorage.getItem('moviebox_watchlist') || '[]'),
   searchTimeout: null,
   controlsTimeout: null,
   wallpaperIndex: 0,
@@ -260,9 +262,20 @@ function initEventListeners() {
     btn.addEventListener('click', () => {
       document.querySelectorAll('#catalogSection .pill-btn').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
-      state.activeFilter = btn.getAttribute('data-filter');
-      filterAndRenderCatalog();
-      scrollToCatalog();
+      const filter = btn.getAttribute('data-filter');
+      state.activeFilter = filter;
+      if (filter === 'all') {
+        loadTab('all', true);
+      } else if (filter === 'movie') {
+        loadTab('movies', true);
+      } else if (filter === 'series') {
+        loadTab('series', true);
+      } else if (filter === 'anime') {
+        loadTab('anime', true);
+      } else if (filter === 'telugu') {
+        filterAndRenderCatalog();
+        scrollToCatalog();
+      }
     });
   });
 
@@ -301,7 +314,7 @@ function initEventListeners() {
     });
   }
 
-  // Quick genre tags (Telugu Dubbed, Marvel, Action, Trending Shows)
+  // Quick genre tags (Telugu Dubbed, Marvel, Anime, Action, Trending Shows)
   if (DOM.quickGenreTags) {
     DOM.quickGenreTags.querySelectorAll('.genre-tag').forEach(tag => {
       tag.addEventListener('click', () => {
@@ -313,6 +326,12 @@ function initEventListeners() {
           document.querySelectorAll('#catalogSection .pill-btn').forEach(b => b.classList.toggle('active', b.getAttribute('data-filter') === 'telugu'));
           filterAndRenderCatalog();
           scrollToCatalog();
+        } else if (query === 'marvel') {
+          if (DOM.catalogHeaderTitle) DOM.catalogHeaderTitle.innerHTML = '<i class="fa-solid fa-mask"></i> Marvel Cinematic Universe (Latest to Iron Man)';
+          loadTab('marvel', true);
+        } else if (query === 'anime') {
+          if (DOM.catalogHeaderTitle) DOM.catalogHeaderTitle.innerHTML = '<i class="fa-solid fa-dragon"></i> Anime Series & Movies';
+          loadTab('anime', true);
         } else {
           DOM.searchInput.value = query;
           if (DOM.searchClear) DOM.searchClear.style.display = 'block';
@@ -466,26 +485,25 @@ function handleNavigation(tab, shouldScrollToCatalog = false) {
   DOM.watchlistView.style.display = 'none';
 
   if (tab === 'home') {
-    DOM.homeView.style.display = 'block';
     state.activeFilter = 'all';
     if (DOM.catalogHeaderTitle) DOM.catalogHeaderTitle.innerHTML = '<i class="fa-solid fa-fire"></i> Trending & Popular Titles';
     document.querySelectorAll('#catalogSection .pill-btn').forEach(b => b.classList.toggle('active', b.getAttribute('data-filter') === 'all'));
-    filterAndRenderCatalog();
-    if (shouldScrollToCatalog) scrollToCatalog();
+    loadTab('all', shouldScrollToCatalog);
   } else if (tab === 'movies') {
-    DOM.homeView.style.display = 'block';
     state.activeFilter = 'movie';
     if (DOM.catalogHeaderTitle) DOM.catalogHeaderTitle.innerHTML = '<i class="fa-solid fa-film"></i> Movies (Feature Films)';
     document.querySelectorAll('#catalogSection .pill-btn').forEach(b => b.classList.toggle('active', b.getAttribute('data-filter') === 'movie'));
-    filterAndRenderCatalog();
-    if (shouldScrollToCatalog) scrollToCatalog();
+    loadTab('movies', shouldScrollToCatalog);
   } else if (tab === 'series') {
-    DOM.homeView.style.display = 'block';
     state.activeFilter = 'series';
     if (DOM.catalogHeaderTitle) DOM.catalogHeaderTitle.innerHTML = '<i class="fa-solid fa-tv"></i> TV Series & Shows';
     document.querySelectorAll('#catalogSection .pill-btn').forEach(b => b.classList.toggle('active', b.getAttribute('data-filter') === 'series'));
-    filterAndRenderCatalog();
-    if (shouldScrollToCatalog) scrollToCatalog();
+    loadTab('series', shouldScrollToCatalog);
+  } else if (tab === 'anime') {
+    state.activeFilter = 'anime';
+    if (DOM.catalogHeaderTitle) DOM.catalogHeaderTitle.innerHTML = '<i class="fa-solid fa-dragon"></i> Anime Series & Movies';
+    document.querySelectorAll('#catalogSection .pill-btn').forEach(b => b.classList.toggle('active', b.getAttribute('data-filter') === 'anime'));
+    loadTab('anime', shouldScrollToCatalog);
   } else if (tab === 'watchlist') {
     DOM.watchlistView.style.display = 'block';
     renderWatchlistView();
@@ -504,34 +522,68 @@ function scrollToCatalog() {
 
 // ----------------- Data Fetching -----------------
 async function loadHomepage() {
+  await loadTab('all', false);
+}
+
+async function loadTab(tabId = 'all', shouldScroll = false) {
+  DOM.homeView.style.display = 'block';
+  DOM.searchResultsView.style.display = 'none';
+  DOM.watchlistView.style.display = 'none';
+
+  if (state.tabCache[tabId] && state.tabCache[tabId].length > 0) {
+    state.catalogItems = state.tabCache[tabId];
+    state.isLoadingCatalog = false;
+    filterAndRenderCatalog();
+    if (shouldScroll) scrollToCatalog();
+    return;
+  }
+
+  state.isLoadingCatalog = true;
+  DOM.trendingGrid.innerHTML = `
+    <div class="loading-spinner">
+      <div class="spinner"></div>
+      <p>Loading titles from Room 206...</p>
+    </div>
+  `;
+
   try {
-    const res = await fetch('/api/homepage?tab=all&page=1');
+    const endpoint = (tabId === 'marvel') ? '/api/marvel' : `/api/homepage?tab=${tabId}&page=1`;
+    const res = await fetch(endpoint);
     const data = await res.json();
-    if (data.success && data.items.length > 0) {
+    if (data.success && data.items && data.items.length > 0) {
+      state.tabCache[tabId] = data.items;
       state.catalogItems = data.items;
+      state.isLoadingCatalog = false;
       filterAndRenderCatalog();
     } else {
+      state.isLoadingCatalog = false;
       DOM.trendingGrid.innerHTML = `<div class="empty-state"><h3>No titles found</h3></div>`;
     }
   } catch (err) {
-    console.error('Failed to load homepage:', err);
+    console.error('Failed to load tab:', tabId, err);
+    state.isLoadingCatalog = false;
     DOM.trendingGrid.innerHTML = `<div class="empty-state"><h3>Failed to load content</h3><p>${escapeHtml(err.message)}</p></div>`;
+  } finally {
+    if (shouldScroll) scrollToCatalog();
   }
 }
 
 function filterAndRenderCatalog() {
+  if (state.isLoadingCatalog) return;
   let filtered = state.catalogItems;
   if (state.activeFilter === 'movie') {
     filtered = filtered.filter(i => !i.is_series);
   } else if (state.activeFilter === 'series') {
     filtered = filtered.filter(i => i.is_series);
+  } else if (state.activeFilter === 'anime') {
+    // anime tab items
   } else if (state.activeFilter === 'telugu') {
     filtered = filtered.filter(i => 
       (i.raw_title && i.raw_title.toLowerCase().includes('telugu')) ||
-      (i.title && i.title.toLowerCase().includes('telugu'))
+      (i.title && i.title.toLowerCase().includes('telugu')) ||
+      (i.language_tag && i.language_tag.toLowerCase().includes('telugu'))
     );
     if (filtered.length === 0) {
-      // Fallback search for telugu
       executeSearch("Telugu", "all");
       return;
     }
@@ -986,7 +1038,7 @@ function executeDownload() {
     return;
   }
 
-  const mediaTitle = state.currentDetails ? state.currentDetails.title : "MovieTap_Video";
+  const mediaTitle = state.currentDetails ? state.currentDetails.title : "Room206_Video";
   const lang = state.downloadDub ? state.downloadDub.language : "Audio";
   const qual = state.downloadStream.quality;
   const subLang = (state.downloadCaption && state.downloadCaption.language) ? `_[${state.downloadCaption.language}Subs]` : '';
@@ -1619,8 +1671,8 @@ function toggleWatchlist(item) {
 }
 
 function updateWatchlistBadge() {
-  const cnt = state.watchlist.length;
-  DOM.watchlistCount.textContent = cnt;
+  const cnt = state.watchlist ? state.watchlist.length : 0;
+  if (DOM.watchlistCount) DOM.watchlistCount.textContent = cnt;
   if (DOM.heroWatchlistCount) DOM.heroWatchlistCount.textContent = cnt;
 }
 

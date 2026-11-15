@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>MovieTap - Watch Movies, TV Series & Anime</title>
+  <title>Room 206 - Watch Movies, TV Series & Anime</title>
   <link rel="stylesheet" href="/static/style.css">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -26,9 +26,9 @@
         <!-- Site Logo & Brand Name -->
         <div class="center-brand">
           <div class="center-logo-pill">
-            <i class="fa-solid fa-bolt"></i> MOVIETAP STREAM
+            <i class="fa-solid fa-film"></i> ROOM 206 STREAM
           </div>
-          <h1 class="center-brand-title">Movie<span>Tap</span></h1>
+          <h1 class="center-brand-title">Room <span>206</span></h1>
           <p class="center-brand-tagline">Watch Movies, TV Series & Anime in Telugu, Hindi & English • Zero Buffering</p>
         </div>
 
@@ -37,6 +37,7 @@
           <button class="hero-pill-btn active" data-tab="home"><i class="fa-solid fa-house"></i> Home</button>
           <button class="hero-pill-btn" data-tab="movies"><i class="fa-solid fa-film"></i> Movies</button>
           <button class="hero-pill-btn" data-tab="series"><i class="fa-solid fa-tv"></i> TV Series</button>
+          <button class="hero-pill-btn" data-tab="anime"><i class="fa-solid fa-dragon"></i> Anime</button>
           <button class="hero-pill-btn" data-tab="watchlist"><i class="fa-solid fa-bookmark"></i> Watchlist (<span id="heroWatchlistCount">0</span>)</button>
         </div>
 
@@ -57,6 +58,7 @@
         <div class="quick-genre-tags" id="quickGenreTags">
           <span class="genre-tag active" data-query="telugu"><i class="fa-solid fa-star"></i> Telugu Dubbed</span>
           <span class="genre-tag" data-query="marvel"><i class="fa-solid fa-mask"></i> Marvel</span>
+          <span class="genre-tag" data-query="anime"><i class="fa-solid fa-dragon"></i> Anime</span>
           <span class="genre-tag" data-query="action"><i class="fa-solid fa-fire"></i> Action</span>
           <span class="genre-tag" data-query="netflix"><i class="fa-solid fa-tv"></i> Trending Shows</span>
         </div>
@@ -81,11 +83,12 @@
             <button class="pill-btn active" data-filter="all">All</button>
             <button class="pill-btn" data-filter="movie">Movies</button>
             <button class="pill-btn" data-filter="series">TV Shows</button>
+            <button class="pill-btn" data-filter="anime">Anime</button>
             <button class="pill-btn" data-filter="telugu">Telugu Dubs</button>
           </div>
         </div>
         <div class="media-grid" id="trendingGrid">
-          <div class="loading-spinner"><div class="spinner"></div><p>Fetching movies from MovieTap engines...</p></div>
+          <div class="loading-spinner"><div class="spinner"></div><p>Fetching titles from Room 206...</p></div>
         </div>
       </section>
     </div>
@@ -123,9 +126,17 @@
       <div class="wallpaper-bottom-bg" id="wallpaperBottomBg"></div>
       <div class="wallpaper-bottom-overlay"></div>
       <div class="footer-center-content">
-        <p class="footer-repo-ref">Referenced from <a href="https://github.com/mesamirh/MovieBox-TUI" target="_blank" rel="noopener">mesamirh/MovieBox-TUI</a></p>
+        <div class="footer-bottom-row">
+          <span class="footer-author-brand">king tech 1120</span>
+          <p class="footer-repo-ref">Referenced from <a href="https://github.com/mesamirh/MovieBox-TUI" target="_blank" rel="noopener">mesamirh/MovieBox-TUI</a></p>
+        </div>
       </div>
     </section>
+
+    <!-- Hidden compatibility markers -->
+    <span id="watchlistCount" style="display:none;"></span>
+    <span id="modalProvider" style="display:none;"></span>
+    <a id="brandLogo" href="#" style="display:none;"></a>
 
   </main>
 

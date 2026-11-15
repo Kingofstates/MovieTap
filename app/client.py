@@ -370,6 +370,9 @@ class MovieBoxClient:
             "series": ["5"],
             "tv": ["5"],
             "shows": ["5"],
+            "anime": ["3"],
+            "animes": ["3"],
+            "animation": ["3"],
             "trending": ["6", "1"],
             "popular": ["7"]
         }

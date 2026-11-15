@@ -1,9 +1,11 @@
 """
-MovieTap - Multi-Provider Aggregator
+Room 206 - Multi-Provider Aggregator
 Integrates:
 1. MovieBox (Primary high-speed HD/4K multi-dub engine with Telugu/Hindi/English)
 2. Dramachi (Asian dramas, anime, and movies via nodeobjects API)
 3. 4KHDHub (4K/UHD releases via 4khdhub.one)
+4. AnimeWorld India (Anime in Hindi, Telugu, Tamil, and English via watchanimeworld.one)
+5. HiAnime (International Anime sub/dub via hianime.biz.pl)
 """
 
 import asyncio
@@ -15,7 +17,7 @@ from bs4 import BeautifulSoup
 
 from app.client import MovieBoxClient, clean_title
 
-logger = logging.getLogger("movietap.providers")
+logger = logging.getLogger("room206.providers")
 
 # ----------------- Dramachi Provider -----------------
 class DramachiProvider:
@@ -28,7 +30,7 @@ class DramachiProvider:
     async def search(self, query: str, page: int = 1) -> List[dict]:
         try:
             url = f"{self.BASE_URL}?interface=search&q={urllib.parse.quote(query)}&filter=all&page={page}"
-            res = await self.http_client.get(url, timeout=8.0)
+            res = await self.http_client.get(url, timeout=7.0)
             if res.status_code != 200:
                 return []
             data = res.json()
@@ -61,7 +63,7 @@ class DramachiProvider:
         try:
             clean_id = title_id.replace("dramachi_", "")
             url = f"{self.BASE_URL}?interface=title_v2&id={clean_id}"
-            res = await self.http_client.get(url, timeout=8.0)
+            res = await self.http_client.get(url, timeout=7.0)
             if res.status_code != 200:
                 return None
             data = res.json()
@@ -71,7 +73,6 @@ class DramachiProvider:
             thumb = album.get("thumb") or ""
             poster_url = f"{self.IMAGE_CDN}{thumb}" if thumb else ""
             
-            # Extract dubs and versions
             seasons_data = data.get("seasons") or {}
             dubs = []
             if isinstance(seasons_data, dict):
@@ -138,9 +139,8 @@ class DramachiProvider:
             clean_id = target_id.replace("dramachi_", "")
             title_id, rip = clean_id.split("::") if "::" in clean_id else (clean_id, "hd Rip")
             
-            # Fetch episode list
             ep_url = f"{self.BASE_URL}?interface=eplist&season={urllib.parse.quote(rip)}&id={title_id}"
-            ep_res = await self.http_client.get(ep_url, timeout=8.0)
+            ep_res = await self.http_client.get(ep_url, timeout=7.0)
             if ep_res.status_code != 200:
                 return []
             ep_data = ep_res.json()
@@ -148,7 +148,6 @@ class DramachiProvider:
             if not ep_list:
                 return []
 
-            # Pick matching episode or first
             target_ep = ep_list[0]
             if episode > 1 and len(ep_list) >= episode:
                 target_ep = ep_list[episode - 1]
@@ -158,9 +157,8 @@ class DramachiProvider:
             if not fid:
                 return []
 
-            # Get file info
             file_url = f"{self.BASE_URL}?interface=getFile&fid={fid}&findex={disk}"
-            file_res = await self.http_client.get(file_url, timeout=8.0)
+            file_res = await self.http_client.get(file_url, timeout=7.0)
             if file_res.status_code != 200:
                 return []
             f_data = file_res.json()
@@ -203,7 +201,7 @@ class FourKHdHubProvider:
             headers = {
                 "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
             }
-            res = await self.http_client.get(url, headers=headers, timeout=8.0)
+            res = await self.http_client.get(url, headers=headers, timeout=6.0)
             if res.status_code != 200:
                 return []
             soup = BeautifulSoup(res.text, "html.parser")
@@ -245,6 +243,120 @@ class FourKHdHubProvider:
             return []
 
 
+# ----------------- AnimeWorld India Provider -----------------
+class AnimeWorldProvider:
+    """AnimeWorld India (watchanimeworld.one) - Best source for Hindi, Telugu, Tamil & English Anime"""
+    BASE_URL = "https://watchanimeworld.one/"
+
+    def __init__(self, http_client: httpx.AsyncClient):
+        self.http_client = http_client
+
+    async def search(self, query: str) -> List[dict]:
+        try:
+            url = f"{self.BASE_URL}?s={urllib.parse.quote(query)}"
+            headers = {
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+            }
+            res = await self.http_client.get(url, headers=headers, timeout=6.0)
+            if res.status_code != 200:
+                return []
+            soup = BeautifulSoup(res.text, "html.parser")
+            results = []
+            for article in soup.select("article, .post-item, .bsx, .animposx"):
+                a_tag = article.select_one("a")
+                if not a_tag:
+                    continue
+                href = a_tag.get("href") or ""
+                title_elem = article.select_one(".tt, h2, h3, .title") or a_tag
+                title = title_elem.get_text(strip=True) if title_elem else ""
+                if not href or not title:
+                    continue
+                
+                img_tag = article.select_one("img")
+                poster = ""
+                if img_tag:
+                    poster = img_tag.get("data-src") or img_tag.get("src") or ""
+                    if poster.startswith("//"):
+                        poster = "https:" + poster
+
+                is_series = "/series/" in href or "season" in title.lower() or "s0" in title.lower()
+                year = ""
+                for word in title.split():
+                    if word.isdigit() and 1980 <= int(word) <= 2030:
+                        year = word
+                        break
+
+                results.append({
+                    "id": f"animeworld_{urllib.parse.quote(href, safe='')}",
+                    "title": clean_title(title),
+                    "raw_title": title,
+                    "poster_url": poster,
+                    "is_series": is_series,
+                    "year": year or "2024",
+                    "rating": "8.8",
+                    "duration": "24m",
+                    "genres": ["Anime", "Action", "Animation"],
+                    "provider": "AnimeWorld"
+                })
+            return results
+        except Exception as e:
+            logger.warning(f"AnimeWorld search error: {e}")
+            return []
+
+
+# ----------------- HiAnime Provider -----------------
+class HiAnimeProvider:
+    """HiAnime (hianime.biz.pl) - Leading anime stream catalog"""
+    BASE_URL = "https://hianime.biz.pl/"
+
+    def __init__(self, http_client: httpx.AsyncClient):
+        self.http_client = http_client
+
+    async def search(self, query: str) -> List[dict]:
+        try:
+            url = f"{self.BASE_URL}search?keyword={urllib.parse.quote(query)}"
+            headers = {
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+            }
+            res = await self.http_client.get(url, headers=headers, timeout=6.0)
+            if res.status_code != 200:
+                return []
+            soup = BeautifulSoup(res.text, "html.parser")
+            results = []
+            for item in soup.select(".flw-item"):
+                name_elem = item.select_one(".film-name a")
+                if not name_elem:
+                    continue
+                title = name_elem.get_text(strip=True)
+                href = name_elem.get("href") or ""
+                poster_elem = item.select_one(".film-poster img")
+                poster = ""
+                if poster_elem:
+                    poster = poster_elem.get("data-src") or poster_elem.get("src") or ""
+                
+                is_sub = bool(item.select_one(".tick-sub"))
+                is_dub = bool(item.select_one(".tick-dub"))
+                lang_tag = "Multi Dub" if is_sub and is_dub else ("Dubbed" if is_dub else "Subbed")
+
+                results.append({
+                    "id": f"hianime_{urllib.parse.quote(href, safe='')}",
+                    "title": clean_title(title),
+                    "raw_title": title,
+                    "language_tag": lang_tag,
+                    "poster_url": poster,
+                    "is_series": True,
+                    "year": "2024",
+                    "rating": "8.9",
+                    "duration": "24m",
+                    "genres": ["Anime", "Animation", "Action"],
+                    "provider": "HiAnime"
+                })
+            return results
+        except Exception as e:
+            logger.warning(f"HiAnime search error: {e}")
+            return []
+
+
 # ----------------- Aggregated Multi-Search Engine -----------------
 class SearchAggregator:
     def __init__(self, moviebox_client: MovieBoxClient):
@@ -252,11 +364,13 @@ class SearchAggregator:
 
     async def multi_search(self, http_client: httpx.AsyncClient, query: str, provider: str = "all") -> List[dict]:
         """
-        Search across MovieBox, Dramachi, and 4KHDHub concurrently.
+        Search across MovieBox, Dramachi, 4KHDHub, AnimeWorld, and HiAnime concurrently.
         """
         tasks = []
         dramachi = DramachiProvider(http_client)
         fourkhd = FourKHdHubProvider(http_client)
+        animeworld = AnimeWorldProvider(http_client)
+        hianime = HiAnimeProvider(http_client)
 
         # 1. MovieBox search
         if provider in ["all", "moviebox"]:
@@ -280,6 +394,14 @@ class SearchAggregator:
         if provider in ["all", "4khdhub"]:
             tasks.append(fourkhd.search(query))
 
+        # 4. AnimeWorld search (Hindi/Telugu/English anime)
+        if provider in ["all", "anime", "animeworld"]:
+            tasks.append(animeworld.search(query))
+
+        # 5. HiAnime search
+        if provider in ["all", "anime", "hianime"]:
+            tasks.append(hianime.search(query))
+
         results_lists = await asyncio.gather(*tasks, return_exceptions=True)
         
         combined = []
@@ -291,9 +413,6 @@ class SearchAggregator:
                     if key not in seen_titles:
                         seen_titles.add(key)
                         combined.append(item)
-                    else:
-                        # Append provider tag if duplicate
-                        pass
 
         # Sort: MovieBox primary, then others
         combined.sort(key=lambda x: (0 if x.get("provider") == "MovieBox" else 1))

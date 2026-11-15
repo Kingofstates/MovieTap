@@ -2109,9 +2109,30 @@ video::cue {
 .footer-center-content {
   position: relative;
   z-index: 10;
-  text-align: center;
-  max-width: 600px;
+  width: 100%;
+  max-width: 1200px;
   margin: 0 auto;
+}
+
+.footer-bottom-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 0 20px;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+.footer-author-brand {
+  font-size: 0.78rem;
+  font-weight: 500;
+  color: #ffffff;
+  letter-spacing: 0.8px;
+  opacity: 0.85;
+  text-transform: lowercase;
+  font-family: 'JetBrains Mono', monospace;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.9);
 }
 
 .footer-repo-ref {
