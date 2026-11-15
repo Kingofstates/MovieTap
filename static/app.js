@@ -41,8 +41,8 @@ const state = {
   activeStream: null,
   currentCaptions: [],
   activeCaption: null,
-  watchHistory: JSON.parse(localStorage.getItem('room206_history') || localStorage.getItem('movietap_history') || localStorage.getItem('moviebox_history') || '[]'),
-  watchlist: JSON.parse(localStorage.getItem('room206_watchlist') || localStorage.getItem('movietap_watchlist') || localStorage.getItem('moviebox_watchlist') || '[]'),
+  watchHistory: (JSON.parse(localStorage.getItem('room206_history') || localStorage.getItem('movietap_history') || localStorage.getItem('moviebox_history') || '[]')).filter(i => !i.is_series),
+  watchlist: (JSON.parse(localStorage.getItem('room206_watchlist') || localStorage.getItem('movietap_watchlist') || localStorage.getItem('moviebox_watchlist') || '[]')).filter(i => !i.is_series),
   searchTimeout: null,
   controlsTimeout: null,
   wallpaperIndex: 0,
@@ -269,7 +269,7 @@ function initEventListeners() {
       } else if (filter === 'movie') {
         loadTab('movies', true);
       } else if (filter === 'series') {
-        loadTab('series', true);
+        loadTab('movies', true);
       } else if (filter === 'anime') {
         loadTab('anime', true);
       } else if (filter === 'telugu') {
@@ -369,15 +369,17 @@ function initEventListeners() {
   DOM.modalWatchlistBtn.addEventListener('click', () => {
     if (state.currentDetails) toggleWatchlist(state.currentDetails);
   });
-  DOM.seasonSelect.addEventListener('change', (e) => {
-    state.selectedSeason = parseInt(e.target.value);
-    renderEpisodesForSeason(state.selectedSeason);
-    previewStreamsAndSubtitles(
-      state.activeDub ? state.activeDub.id : state.currentDetails.id,
-      state.selectedSeason,
-      state.selectedEpisode
-    );
-  });
+  if (DOM.seasonSelect) {
+    DOM.seasonSelect.addEventListener('change', (e) => {
+      state.selectedSeason = parseInt(e.target.value);
+      renderEpisodesForSeason(state.selectedSeason);
+      previewStreamsAndSubtitles(
+        state.activeDub ? state.activeDub.id : state.currentDetails.id,
+        state.selectedSeason,
+        state.selectedEpisode
+      );
+    });
+  }
 
   // Download Dialog Actions
   DOM.downloadModalCloseBtn.addEventListener('click', closeDownloadModal);
@@ -441,7 +443,9 @@ function initEventListeners() {
 
   DOM.btnPiP.addEventListener('click', togglePictureInPicture);
   DOM.btnFullscreen.addEventListener('click', toggleFullscreen);
-  DOM.btnNextEpisode.addEventListener('click', playNextEpisode);
+  if (DOM.btnNextEpisode) {
+    DOM.btnNextEpisode.addEventListener('click', playNextEpisode);
+  }
 
   // Video Events
   DOM.videoElement.addEventListener('timeupdate', updateVideoProgress);
@@ -489,22 +493,17 @@ function handleNavigation(tab, shouldScrollToCatalog = false) {
 
   if (tab === 'home') {
     state.activeFilter = 'all';
-    if (DOM.catalogHeaderTitle) DOM.catalogHeaderTitle.innerHTML = '<i class="fa-solid fa-fire"></i> Trending & Popular Titles';
+    if (DOM.catalogHeaderTitle) DOM.catalogHeaderTitle.innerHTML = '<i class="fa-solid fa-fire"></i> Trending & Popular Movies';
     document.querySelectorAll('#catalogSection .pill-btn').forEach(b => b.classList.toggle('active', b.getAttribute('data-filter') === 'all'));
     loadTab('all', shouldScrollToCatalog);
-  } else if (tab === 'movies') {
+  } else if (tab === 'movies' || tab === 'series') {
     state.activeFilter = 'movie';
     if (DOM.catalogHeaderTitle) DOM.catalogHeaderTitle.innerHTML = '<i class="fa-solid fa-film"></i> Movies (Feature Films)';
     document.querySelectorAll('#catalogSection .pill-btn').forEach(b => b.classList.toggle('active', b.getAttribute('data-filter') === 'movie'));
     loadTab('movies', shouldScrollToCatalog);
-  } else if (tab === 'series') {
-    state.activeFilter = 'series';
-    if (DOM.catalogHeaderTitle) DOM.catalogHeaderTitle.innerHTML = '<i class="fa-solid fa-tv"></i> TV Series & Shows';
-    document.querySelectorAll('#catalogSection .pill-btn').forEach(b => b.classList.toggle('active', b.getAttribute('data-filter') === 'series'));
-    loadTab('series', shouldScrollToCatalog);
   } else if (tab === 'anime') {
     state.activeFilter = 'anime';
-    if (DOM.catalogHeaderTitle) DOM.catalogHeaderTitle.innerHTML = '<i class="fa-solid fa-dragon"></i> Anime Series & Movies';
+    if (DOM.catalogHeaderTitle) DOM.catalogHeaderTitle.innerHTML = '<i class="fa-solid fa-dragon"></i> Anime Movies';
     document.querySelectorAll('#catalogSection .pill-btn').forEach(b => b.classList.toggle('active', b.getAttribute('data-filter') === 'anime'));
     loadTab('anime', shouldScrollToCatalog);
   } else if (tab === 'watchlist') {
@@ -573,13 +572,11 @@ async function loadTab(tabId = 'all', shouldScroll = false) {
 
 function filterAndRenderCatalog() {
   if (state.isLoadingCatalog) return;
-  let filtered = state.catalogItems;
+  let filtered = (state.catalogItems || []).filter(i => !i.is_series);
   if (state.activeFilter === 'movie') {
     filtered = filtered.filter(i => !i.is_series);
-  } else if (state.activeFilter === 'series') {
-    filtered = filtered.filter(i => i.is_series);
   } else if (state.activeFilter === 'anime') {
-    // anime tab items
+    filtered = filtered.filter(i => !i.is_series);
   } else if (state.activeFilter === 'telugu') {
     filtered = filtered.filter(i => 
       (i.raw_title && i.raw_title.toLowerCase().includes('telugu')) ||
@@ -604,7 +601,7 @@ function renderGrid(container, items) {
     <div class="media-card" data-id="${item.id}">
       <div class="poster-wrapper">
         <img class="poster-img" src="${item.poster_url || '/static/placeholder.jpg'}" alt="${escapeHtml(item.title)}" loading="lazy" onerror="this.src='https://placehold.co/300x450/151a27/9da8b6?text=No+Poster'">
-        <span class="card-type-badge">${item.is_series ? 'SERIES' : 'MOVIE'}</span>
+        <span class="card-type-badge">MOVIE</span>
         ${item.rating ? `<span class="card-rating"><i class="fa-solid fa-star"></i> ${item.rating}</span>` : ''}
         <div class="card-play-overlay">
           <div class="card-play-btn"><i class="fa-solid fa-play"></i></div>
@@ -661,7 +658,7 @@ function renderRichSuggestions(suggestions) {
       <div class="suggest-info">
         <div class="suggest-title">${escapeHtml(s.title)}</div>
         <div class="suggest-meta">
-          <span>${s.is_series ? 'TV Series' : 'Movie'}</span>
+          <span>Movie</span>
           ${s.year ? `<span>• ${s.year}</span>` : ''}
           ${s.rating ? `<span>• <i class="fa-solid fa-star" style="color:#f5c518;font-size:0.7rem;"></i> ${s.rating}</span>` : ''}
         </div>
@@ -726,8 +723,8 @@ async function openDetails(subjectId, autoPlay = false, targetDubId = null) {
     state.selectedEpisode = 1;
 
     DOM.modalTitle.textContent = details.title;
-    DOM.modalType.textContent = details.is_series ? 'TV SERIES' : 'MOVIE';
-    if (DOM.modalProvider) DOM.modalProvider.textContent = details.provider || 'MOVIETAP';
+    DOM.modalType.textContent = 'MOVIE';
+    if (DOM.modalProvider) DOM.modalProvider.textContent = details.provider || 'ROOM 206';
     DOM.modalRating.innerHTML = `<i class="fa-solid fa-star"></i> ${details.rating || '8.5'}`;
     DOM.modalYear.textContent = details.year || '';
     DOM.modalDuration.textContent = details.duration || '';
@@ -758,15 +755,7 @@ async function openDetails(subjectId, autoPlay = false, targetDubId = null) {
       ? '<i class="fa-solid fa-bookmark"></i> In Watchlist'
       : '<i class="fa-regular fa-bookmark"></i> Add to Watchlist';
 
-    // TV Series Handling
-    if (details.is_series && details.seasons && details.seasons.length > 0) {
-      DOM.modalSeriesSection.style.display = 'block';
-      DOM.seasonSelect.innerHTML = details.seasons.map(s => `
-        <option value="${s.season}">Season ${s.season}</option>
-      `).join('');
-      state.selectedSeason = details.seasons[0].season;
-      renderEpisodesForSeason(state.selectedSeason);
-    } else {
+    if (DOM.modalSeriesSection) {
       DOM.modalSeriesSection.style.display = 'none';
     }
 
@@ -794,12 +783,12 @@ async function openDetails(subjectId, autoPlay = false, targetDubId = null) {
     // Preview stream qualities and subtitles
     await previewStreamsAndSubtitles(
       activeDub.id,
-      details.is_series ? state.selectedSeason : 0,
-      details.is_series ? state.selectedEpisode : 0
+      0,
+      0
     );
 
     if (autoPlay) {
-      startPlayback(details, state.activeDub, state.selectedSeason, state.selectedEpisode);
+      startPlayback(details, state.activeDub, 0, 0);
     }
 
   } catch (err) {
@@ -843,8 +832,8 @@ function selectDub(dub) {
 
   previewStreamsAndSubtitles(
     dub.id,
-    state.currentDetails.is_series ? state.selectedSeason : 0,
-    state.currentDetails.is_series ? state.selectedEpisode : 0
+    0,
+    0
   );
 }
 
@@ -976,9 +965,7 @@ async function loadDownloadStreamsAndSubs(subjectId) {
   DOM.downloadSubtitleChips.innerHTML = `<button class="download-chip active" data-sub="none">No Subtitle (None)</button>`;
 
   try {
-    const sNum = state.currentDetails && state.currentDetails.is_series ? state.selectedSeason : 0;
-    const epNum = state.currentDetails && state.currentDetails.is_series ? state.selectedEpisode : 0;
-    const res = await fetch(`/api/streams?id=${subjectId}&season=${sNum}&episode=${epNum}`);
+    const res = await fetch(`/api/streams?id=${subjectId}&season=0&episode=0`);
     const data = await res.json();
     if (data.success && data.streams.length > 0) {
       state.downloadStream = data.streams[0];
@@ -1090,11 +1077,8 @@ async function startPlayback(media, dub, season = 0, episode = 0) {
   state.activeDub = activeDub;
 
   DOM.playerMediaTitle.textContent = media.title;
-  let subTitleStr = media.year ? `(${media.year})` : '';
-  if (media.is_series && episode > 0) {
-    subTitleStr = `Season ${season} • Episode ${episode}`;
-    DOM.btnNextEpisode.style.display = 'flex';
-  } else {
+  const subTitleStr = media.year ? `Feature Film • ${media.year}` : 'Feature Film';
+  if (DOM.btnNextEpisode) {
     DOM.btnNextEpisode.style.display = 'none';
   }
   DOM.playerMediaSubtitle.textContent = subTitleStr;
@@ -1112,9 +1096,7 @@ async function startPlayback(media, dub, season = 0, episode = 0) {
   populateAudioDrawer(dubs, activeDub.id);
 
   try {
-    const sNum = media.is_series ? season : 0;
-    const epNum = media.is_series ? episode : 0;
-    const res = await fetch(`/api/streams?id=${activeDub.id}&season=${sNum}&episode=${epNum}`);
+    const res = await fetch(`/api/streams?id=${activeDub.id}&season=0&episode=0`);
     const data = await res.json();
     if (!data.success || data.streams.length === 0) {
       throw new Error(`No streams available for "${activeDub.language}". Try another audio track.`);
@@ -1129,9 +1111,7 @@ async function startPlayback(media, dub, season = 0, episode = 0) {
 
     loadSubtitlesForPlayer(activeDub.id, topStream.resource_id);
 
-    const historyItem = state.watchHistory.find(h =>
-      h.id === media.id && (!media.is_series || (h.season === season && h.episode === episode))
-    );
+    const historyItem = state.watchHistory.find(h => h.id === media.id);
     const resumeTime = (historyItem && historyItem.currentTime > 15) ? historyItem.currentTime : 0;
 
     playStream(topStream.proxy_url, resumeTime);
@@ -1329,9 +1309,7 @@ async function switchAudioLanguageInPlayer(newDub) {
   DOM.playerSpinner.classList.add('visible');
 
   try {
-    const sNum = state.currentDetails && state.currentDetails.is_series ? state.selectedSeason : 0;
-    const epNum = state.currentDetails && state.currentDetails.is_series ? state.selectedEpisode : 0;
-    const res = await fetch(`/api/streams?id=${newDub.id}&season=${sNum}&episode=${epNum}`);
+    const res = await fetch(`/api/streams?id=${newDub.id}&season=0&episode=0`);
     const data = await res.json();
     if (!data.success || data.streams.length === 0) {
       throw new Error(`No streams available for audio track: ${newDub.language}`);
@@ -1614,35 +1592,23 @@ function saveCurrentProgress() {
     id: state.currentDetails.id,
     title: state.currentDetails.title,
     poster_url: state.currentDetails.poster_url,
-    is_series: state.currentDetails.is_series,
-    season: state.selectedSeason,
-    episode: state.selectedEpisode,
+    is_series: false,
+    season: 0,
+    episode: 0,
     currentTime: current,
     duration: duration,
     timestamp: Date.now()
   };
 
-  state.watchHistory = state.watchHistory.filter(h =>
-    !(h.id === item.id && (!h.is_series || (h.season === item.season && h.episode === item.episode)))
-  );
+  state.watchHistory = state.watchHistory.filter(h => h.id !== item.id);
   state.watchHistory.unshift(item);
   if (state.watchHistory.length > 25) state.watchHistory.pop();
-  localStorage.setItem('movietap_history', JSON.stringify(state.watchHistory));
+  localStorage.setItem('room206_history', JSON.stringify(state.watchHistory));
 }
 
 function handleVideoEnded() {
   saveCurrentProgress();
-  if (state.currentDetails && state.currentDetails.is_series) {
-    playNextEpisode();
-  }
-}
-
-function playNextEpisode() {
-  if (!state.currentDetails || !state.currentDetails.is_series) return;
-  const nextEp = state.selectedEpisode + 1;
-  state.selectedEpisode = nextEp;
-  showToast(`Playing Episode ${nextEp}...`);
-  startPlayback(state.currentDetails, state.activeDub, state.selectedSeason, nextEp);
+  showToast("Movie completed!");
 }
 
 function toggleMute() {
@@ -1786,7 +1752,7 @@ function toggleWatchlist(item) {
       id: item.id,
       title: item.title,
       poster_url: item.poster_url,
-      is_series: item.is_series,
+      is_series: false,
       year: item.year,
       rating: item.rating
     });
@@ -1820,9 +1786,9 @@ function renderContinueWatching() {
   DOM.continueWatchingSection.style.display = 'block';
   DOM.continueWatchingGrid.innerHTML = state.watchHistory.map(h => {
     const progressPercent = Math.min(100, (h.currentTime / (h.duration || 1)) * 100);
-    const subLabel = h.is_series ? `S${h.season} E${h.episode}` : formatTime(h.currentTime);
+    const subLabel = formatTime(h.currentTime);
     return `
-      <div class="media-card" data-id="${h.id}" data-season="${h.season || 0}" data-episode="${h.episode || 0}">
+      <div class="media-card" data-id="${h.id}">
         <div class="poster-wrapper">
           <img class="poster-img" src="${h.poster_url || '/static/placeholder.jpg'}" alt="${escapeHtml(h.title)}" onerror="this.src='https://placehold.co/300x450/151a27/9da8b6?text=No+Poster'">
           <div class="card-play-overlay">
@@ -1878,7 +1844,7 @@ function renderWatchlistView() {
       <div class="empty-state">
         <i class="fa-regular fa-bookmark empty-icon"></i>
         <h3>Your watchlist is empty</h3>
-        <p>Save movies and TV series you want to watch later by clicking the bookmark icon.</p>
+        <p>Save movies you want to watch later by clicking the bookmark icon.</p>
       </div>
     `;
   } else {

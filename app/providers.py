@@ -466,6 +466,9 @@ class SearchAggregator:
         for res in results_lists:
             if isinstance(res, list):
                 for item in res:
+                    # Filter out any TV series (Movies only)
+                    if item.get("is_series"):
+                        continue
                     key = (item.get("title", "").strip().lower(), item.get("year", ""))
                     if key not in seen_titles:
                         seen_titles.add(key)

@@ -6,7 +6,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="theme-color" content="#0a0e17">
-  <title>Room 206 - Watch Movies, TV Series & Anime</title>
+  <title>Room 206 - Watch Movies & Anime</title>
   <!-- Aesthetic MT Favicon -->
   <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
   <link rel="alternate icon" type="image/png" href="/static/favicon.png">
@@ -36,14 +36,13 @@
             <i class="fa-solid fa-film"></i> ROOM 206 STREAM
           </div>
           <h1 class="center-brand-title">Room <span>206</span></h1>
-          <p class="center-brand-tagline">Watch Movies, TV Series & Anime in Telugu, Hindi & English • Zero Buffering</p>
+          <p class="center-brand-tagline">Watch Movies & Anime in Telugu, Hindi & English • Zero Buffering</p>
         </div>
 
         <!-- Category Navigation Buttons Below Title -->
         <div class="hero-nav-buttons" id="heroNavButtons">
           <button class="hero-pill-btn active" data-tab="home"><i class="fa-solid fa-house"></i> Home</button>
           <button class="hero-pill-btn" data-tab="movies"><i class="fa-solid fa-film"></i> Movies</button>
-          <button class="hero-pill-btn" data-tab="series"><i class="fa-solid fa-tv"></i> TV Series</button>
           <button class="hero-pill-btn" data-tab="anime"><i class="fa-solid fa-dragon"></i> Anime</button>
           <button class="hero-pill-btn" data-tab="watchlist"><i class="fa-solid fa-bookmark"></i> Watchlist (<span id="heroWatchlistCount">0</span>)</button>
         </div>
@@ -67,7 +66,7 @@
           <span class="genre-tag" data-query="marvel"><i class="fa-solid fa-mask"></i> Marvel</span>
           <span class="genre-tag" data-query="anime"><i class="fa-solid fa-dragon"></i> Anime</span>
           <span class="genre-tag" data-query="action"><i class="fa-solid fa-fire"></i> Action</span>
-          <span class="genre-tag" data-query="netflix"><i class="fa-solid fa-tv"></i> Trending Shows</span>
+          <span class="genre-tag" data-query="trending"><i class="fa-solid fa-bolt"></i> Trending Movies</span>
         </div>
       </div>
     </section>
@@ -89,7 +88,6 @@
           <div class="section-actions">
             <button class="pill-btn active" data-filter="all">All</button>
             <button class="pill-btn" data-filter="movie">Movies</button>
-            <button class="pill-btn" data-filter="series">TV Shows</button>
             <button class="pill-btn" data-filter="anime">Anime</button>
             <button class="pill-btn" data-filter="telugu">Telugu Dubs</button>
           </div>
@@ -122,7 +120,7 @@
           <div class="empty-state">
             <i class="fa-regular fa-bookmark empty-icon"></i>
             <h3>Your watchlist is empty</h3>
-            <p>Save movies and TV series you want to watch later by clicking the bookmark icon.</p>
+            <p>Save movies you want to watch later by clicking the bookmark icon.</p>
           </div>
         </div>
       </section>
@@ -208,17 +206,6 @@
         <div class="language-chips-grid" id="modalAudioChipsGrid"></div>
       </div>
 
-      <!-- TV Series Season & Episode Selector (Shown only for TV Series) -->
-      <div class="modal-series-section" id="modalSeriesSection" style="display: none;">
-        <div class="series-section-header">
-          <h3><i class="fa-solid fa-list"></i> Select Season & Episode</h3>
-          <div class="season-selector-wrapper">
-            <label for="seasonSelect">Season:</label>
-            <select id="seasonSelect" class="season-select"></select>
-          </div>
-        </div>
-        <div class="episode-grid" id="episodeGrid"></div>
-      </div>
 
       <!-- Available Stream Qualities Section -->
       <div class="modal-stream-section">
@@ -307,7 +294,7 @@
         <div class="player-title-info">
           <h3 id="playerMediaTitle">Playing Video</h3>
           <div class="player-status-chips">
-            <span id="playerMediaSubtitle" class="player-media-subtitle">Season 1 • Episode 1</span>
+            <span id="playerMediaSubtitle" class="player-media-subtitle">Feature Film</span>
             <span class="player-status-badge" id="playerAudioBadge"><i class="fa-solid fa-headphones"></i> Telugu</span>
             <span class="player-status-badge" id="playerQualityBadge"><i class="fa-solid fa-gear"></i> 1080p</span>
           </div>
@@ -367,10 +354,6 @@
           </div>
 
           <div class="controls-right">
-            <!-- Next Episode Button (Series only) -->
-            <button class="ctrl-btn next-ep-btn" id="btnNextEpisode" style="display: none;" title="Next Episode">
-              <i class="fa-solid fa-forward-step"></i> Next Ep
-            </button>
 
             <!-- Audio & Subtitles Combined Button (Disney+ / Hotstar style) -->
             <button class="ctrl-btn hotstar-audio-btn" id="btnAudioSubtitles" title="Audio & Subtitles (A)">

@@ -113,30 +113,18 @@ def mcu_sort_key(item):
 async def fetch_marvel_catalog() -> list:
     loop = asyncio.get_event_loop()
     mcu_search_terms = [
-        # 2024 - 2026 Movies & Series
-        "Spider-Man: Brand New Day", "Avengers: Doomsday", "Daredevil: Born Again",
-        "Thunderbolts", "Captain America: Brave New World", "Ironheart", "Eyes of Wakanda",
-        "What If", "Agatha All Along", "Deadpool", "X-Men 97", "Echo",
-        # 2023
-        "The Marvels", "Loki", "Secret Invasion", "Guardians of the Galaxy Vol. 3", "Quantumania",
-        # 2022
-        "Black Panther: Wakanda Forever", "She-Hulk", "Moon Knight", "Ms. Marvel",
-        "Thor: Love and Thunder", "Multiverse of Madness", "Werewolf by Night",
-        # 2021
-        "Hawkeye", "Spider-Man: No Way Home", "Eternals", "Shang-Chi",
-        "Black Widow", "The Falcon and the Winter Soldier", "WandaVision",
-        # 2018 - 2019
+        # MCU Movies Chronology: Latest down to 2008
+        "Avengers: Secret Wars", "Avengers: Doomsday", "Spider-Man: Brand New Day",
+        "Thunderbolts", "Captain America: Brave New World", "Deadpool & Wolverine",
+        "The Marvels", "Guardians of the Galaxy Vol. 3", "Ant-Man and the Wasp: Quantumania",
+        "Black Panther: Wakanda Forever", "Thor: Love and Thunder", "Doctor Strange in the Multiverse of Madness",
+        "Spider-Man: No Way Home", "Eternals", "Shang-Chi", "Black Widow",
         "Spider-Man: Far From Home", "Avengers: Endgame", "Captain Marvel",
-        "Ant-Man and the Wasp", "Avengers: Infinity War", "Black Panther", "The Punisher",
-        # 2015 - 2017
+        "Ant-Man and the Wasp", "Avengers: Infinity War", "Black Panther",
         "Thor: Ragnarok", "Spider-Man: Homecoming", "Guardians of the Galaxy Vol. 2",
         "Doctor Strange", "Captain America: Civil War", "Ant-Man", "Avengers: Age of Ultron",
-        "Daredevil", "Jessica Jones", "Luke Cage", "Iron Fist", "The Defenders",
-        # 2013 - 2014
         "Guardians of the Galaxy", "Captain America: The Winter Soldier", "Thor: The Dark World",
-        "Agents of S.H.I.E.L.D.", "Iron Man 3",
-        # 2008 - 2012 (First releases)
-        "The Avengers", "Captain America: The First Avenger", "Thor",
+        "Iron Man 3", "The Avengers", "Captain America: The First Avenger", "Thor",
         "Iron Man 2", "The Incredible Hulk", "Iron Man"
     ]
     sem = asyncio.Semaphore(10)
@@ -145,7 +133,7 @@ async def fetch_marvel_catalog() -> list:
         async with sem:
             try:
                 res = await loop.run_in_executor(None, client.search, term, 1)
-                return res[:2] if res else []
+                return [it for it in (res[:2] if res else []) if not it.get("is_series")]
             except Exception:
                 return []
 
@@ -156,7 +144,7 @@ async def fetch_marvel_catalog() -> list:
     seen = set()
     for r in raw_items:
         sid = r.get("id")
-        if sid and sid not in seen:
+        if sid and sid not in seen and not r.get("is_series"):
             seen.add(sid)
             unique.append(r)
             
@@ -167,17 +155,21 @@ async def fetch_anime_catalog() -> list:
     loop = asyncio.get_event_loop()
     mb_items = []
     try:
-        mb_items = await loop.run_in_executor(None, client.get_homepage, "3", 1)
+        raw_mb = await loop.run_in_executor(None, client.get_homepage, "3", 1)
+        mb_items = [it for it in raw_mb if not it.get("is_series")]
     except Exception:
         pass
     
-    popular_queries = ["Solo Leveling", "Demon Slayer", "Attack on Titan", "Jujutsu Kaisen", "Naruto", "One Piece", "Bleach", "Chainsaw Man"]
+    popular_queries = ["Demon Slayer Mugen Train", "Suzume", "Your Name", "Spirited Away", "Jujutsu Kaisen 0", "Weathering with You", "A Silent Voice", "Princess Mononoke", "Howl's Moving Castle", "The Boy and the Heron"]
     popular_items = []
     for q in popular_queries:
         try:
             res = await loop.run_in_executor(None, client.search, q, 1)
             if res:
-                popular_items.append(res[0])
+                for it in res:
+                    if not it.get("is_series"):
+                        popular_items.append(it)
+                        break
         except Exception:
             pass
 
@@ -185,14 +177,14 @@ async def fetch_anime_catalog() -> list:
     seen = set()
     for item in popular_items + mb_items:
         sid = item.get("id")
-        if sid and sid not in seen:
+        if sid and sid not in seen and not item.get("is_series"):
             seen.add(sid)
             combined.append(item)
     return combined
 
 async def prewarm_cache():
     loop = asyncio.get_event_loop()
-    for tab in ["all", "movies", "series", "anime", "marvel"]:
+    for tab in ["all", "movies", "anime", "marvel"]:
         try:
             if tab == "marvel":
                 items = await fetch_marvel_catalog()
@@ -203,6 +195,7 @@ async def prewarm_cache():
             set_cached_catalog(f"{tab}_1", items)
             logger.info(f"Pre-warmed cache for tab '{tab}': {len(items)} items")
         except Exception as e:
+            logger.warning(f"Failed pre-warming tab '{tab}': {e}")
             logger.warning(f"Failed pre-warming tab '{tab}': {e}")
 
 @app.on_event("startup")
@@ -222,11 +215,12 @@ async def shutdown_event():
 
 @app.get("/api/homepage")
 async def get_homepage(tab: str = "2", page: int = 1):
-    """Fetch featured trending titles from Room 206 catalog (Cached for instantaneous load)"""
+    """Fetch featured trending titles from Room 206 catalog (Cached for instantaneous load, movies only)"""
     cache_key = f"{tab.lower()}_{page}"
     cached = get_cached_catalog(cache_key)
     if cached is not None:
-        return {"success": True, "count": len(cached), "items": cached, "cached": True}
+        filtered = [it for it in cached if not it.get("is_series")]
+        return {"success": True, "count": len(filtered), "items": filtered, "cached": True}
 
     try:
         if tab.lower() == "marvel":
@@ -237,6 +231,7 @@ async def get_homepage(tab: str = "2", page: int = 1):
             loop = asyncio.get_event_loop()
             items = await loop.run_in_executor(None, client.get_homepage, tab, page)
             
+        items = [it for it in items if not it.get("is_series")]
         set_cached_catalog(cache_key, items)
         return {"success": True, "count": len(items), "items": items, "cached": False}
     except Exception as e:
@@ -248,16 +243,19 @@ async def get_marvel_movies():
     """Returns Marvel MCU titles in release order: Latest on top, Iron Man (2008) at the bottom!"""
     cached = get_cached_catalog("marvel_1")
     if cached is not None:
-        return {"success": True, "count": len(cached), "items": cached}
+        filtered = [it for it in cached if not it.get("is_series")]
+        return {"success": True, "count": len(filtered), "items": filtered}
     items = await fetch_marvel_catalog()
+    items = [it for it in items if not it.get("is_series")]
     set_cached_catalog("marvel_1", items)
     return {"success": True, "count": len(items), "items": items}
 
 @app.get("/api/search")
 async def search_titles(q: str = Query(..., min_length=1), provider: str = "all", page: int = 1):
-    """Search for movies, TV series, anime across MovieBox, Dramachi, and 4KHDHub"""
+    """Search for movies across MovieBox, Dramachi, and 4KHDHub (TV shows excluded)"""
     try:
         items = await aggregator.multi_search(get_http_client(), q, provider=provider)
+        items = [it for it in items if not it.get("is_series")]
         return {"success": True, "query": q, "provider": provider, "count": len(items), "items": items}
     except Exception as e:
         logger.error(f"Search error: {e}")
@@ -265,9 +263,10 @@ async def search_titles(q: str = Query(..., min_length=1), provider: str = "all"
 
 @app.get("/api/suggest")
 async def get_suggestions(q: str = Query(..., min_length=1), provider: str = "all"):
-    """Search autocomplete suggestions with poster images, title, year, and type"""
+    """Search autocomplete suggestions with poster images, title, year, and type (Movies only)"""
     try:
         items = await aggregator.multi_search(get_http_client(), q, provider=provider)
+        items = [it for it in items if not it.get("is_series")]
         suggestions = []
         for it in items[:8]:
             suggestions.append({
@@ -276,7 +275,7 @@ async def get_suggestions(q: str = Query(..., min_length=1), provider: str = "al
                 "poster_url": it.get("poster_url", ""),
                 "year": it.get("year", ""),
                 "rating": it.get("rating", "8.5"),
-                "is_series": it.get("is_series", False),
+                "is_series": False,
                 "provider": it.get("provider", "MovieBox")
             })
         return {"success": True, "suggestions": suggestions}

@@ -329,7 +329,7 @@ class MovieBoxClient:
             return self._request("POST", path, body)
 
     def search(self, query: str, page: int = 1) -> List[dict]:
-        """Search MovieBox for titles matching keyword with multi-page depth"""
+        """Search MovieBox for movie titles matching keyword (TV shows filtered out)"""
         items = []
         seen = set()
         pages_to_fetch = [page, page + 1, page + 2] if page == 1 else [page]
@@ -338,7 +338,7 @@ class MovieBoxClient:
                 "keyword": query,
                 "page": p,
                 "perPage": 15,
-                "subjectType": 0
+                "subjectType": 1  # 1 = Movies only
             }
             try:
                 res = self.post("/wefeed-mobile-bff/subject-api/search/v2", payload)
@@ -347,7 +347,9 @@ class MovieBoxClient:
                         sid = str(s.get("subjectId") or s.get("id") or "")
                         if sid and sid not in seen:
                             seen.add(sid)
-                            items.append(self._format_catalog_item(s))
+                            formatted = self._format_catalog_item(s)
+                            if not formatted.get("is_series"):
+                                items.append(formatted)
             except Exception as e:
                 logger.warning(f"MovieBox search page {p} error: {e}")
         return items
@@ -358,25 +360,22 @@ class MovieBoxClient:
         return [item["title"] for item in items[:8]]
 
     def get_homepage(self, tab_id: str = "all", page: int = 1) -> List[dict]:
-        """Fetch rich catalog combining Discover (Tab 1), TV Series (Tab 5), and Movies (Tab 2)"""
+        """Fetch rich movies catalog (TV shows completely excluded)"""
         items = []
         seen = set()
         tab_str = str(tab_id or "all").lower().strip()
         tab_map = {
-            "all": ["1", "6", "2", "5"],
-            "home": ["1", "6", "2", "5"],
+            "all": ["2", "1", "6"],
+            "home": ["2", "1", "6"],
             "movies": ["2"],
             "movie": ["2"],
-            "series": ["5"],
-            "tv": ["5"],
-            "shows": ["5"],
             "anime": ["3"],
             "animes": ["3"],
             "animation": ["3"],
-            "trending": ["6", "1"],
-            "popular": ["7"]
+            "trending": ["6", "1", "2"],
+            "popular": ["7", "2"]
         }
-        tabs_to_fetch = tab_map.get(tab_str, [tab_str] if tab_str.isdigit() else ["1", "2", "5"])
+        tabs_to_fetch = tab_map.get(tab_str, [tab_str] if tab_str.isdigit() else ["2", "1", "6"])
         
         for tid in tabs_to_fetch:
             try:
@@ -391,7 +390,9 @@ class MovieBoxClient:
                             sid = str(s.get("subjectId") or s.get("id") or "")
                             if sid and sid not in seen:
                                 seen.add(sid)
-                                items.append(self._format_catalog_item(s))
+                                formatted = self._format_catalog_item(s)
+                                if not formatted.get("is_series"):
+                                    items.append(formatted)
                     custom = g.get("customData") or {}
                     for c in custom.get("items") or []:
                         s = c.get("subject")
@@ -399,13 +400,17 @@ class MovieBoxClient:
                             sid = str(s.get("subjectId") or s.get("id") or "")
                             if sid and sid not in seen:
                                 seen.add(sid)
-                                items.append(self._format_catalog_item(s))
+                                formatted = self._format_catalog_item(s)
+                                if not formatted.get("is_series"):
+                                    items.append(formatted)
                     for s in g.get("subjects") or []:
                         if s:
                             sid = str(s.get("subjectId") or s.get("id") or "")
                             if sid and sid not in seen:
                                 seen.add(sid)
-                                items.append(self._format_catalog_item(s))
+                                formatted = self._format_catalog_item(s)
+                                if not formatted.get("is_series"):
+                                    items.append(formatted)
             except Exception as e:
                 logger.warning(f"Error fetching tab {tid}: {e}")
                         
