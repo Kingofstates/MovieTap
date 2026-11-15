@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MovieTap - Watch Movies, TV Series & Anime</title>
+  <link rel="stylesheet" href="/static/style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+</head>
+<body class="dark-theme">
+
+  <!-- Main Container -->
+  <main class="main-content" id="mainContent">
+    
+    <!-- AnimeWorld Inspired Center Hero Section with Random Page-Refresh Wallpaper -->
+    <section class="hero-anime-section" id="heroAnimeSection">
+      <!-- Sharp Unblurred Wallpaper Background (Changes on Page Refresh) -->
+      <div class="wallpaper-loop-bg" id="wallpaperLoopBg"></div>
+      <div class="wallpaper-vignette-overlay"></div>
+      
+      <!-- Centered Content -->
+      <div class="hero-center-content">
+        <!-- Site Logo & Brand Name -->
+        <div class="center-brand">
+          <div class="center-logo-pill">
+            <i class="fa-solid fa-bolt"></i> MOVIETAP STREAM
+          </div>
+          <h1 class="center-brand-title">Movie<span>Tap</span></h1>
+          <p class="center-brand-tagline">Watch Movies, TV Series & Anime in Telugu, Hindi & English • Zero Buffering</p>
+        </div>
+
+        <!-- Category Navigation Buttons Below Title -->
+        <div class="hero-nav-buttons" id="heroNavButtons">
+          <button class="hero-pill-btn active" data-tab="home"><i class="fa-solid fa-house"></i> Home</button>
+          <button class="hero-pill-btn" data-tab="movies"><i class="fa-solid fa-film"></i> Movies</button>
+          <button class="hero-pill-btn" data-tab="series"><i class="fa-solid fa-tv"></i> TV Series</button>
+          <button class="hero-pill-btn" data-tab="watchlist"><i class="fa-solid fa-bookmark"></i> Watchlist (<span id="heroWatchlistCount">0</span>)</button>
+        </div>
+
+        <!-- Prominent Centered Search Bar (Auto-Searches All Engines) -->
+        <div class="center-search-wrapper">
+          <div class="center-search-bar">
+            <i class="fa-solid fa-magnifying-glass search-inner-icon"></i>
+            <input type="text" id="searchInput" placeholder="Search your movie..." autocomplete="off">
+            <button id="searchClear" class="search-clear-btn" title="Clear search"><i class="fa-solid fa-xmark"></i></button>
+            <button id="searchSubmitBtn" class="search-submit-btn" title="Search"><i class="fa-solid fa-arrow-right"></i></button>
+          </div>
+
+          <!-- Rich Autocomplete Suggestions Dropdown with Poster Thumbnails -->
+          <div class="suggestions-dropdown" id="suggestionsDropdown"></div>
+        </div>
+
+        <!-- Popular Category Tags -->
+        <div class="quick-genre-tags" id="quickGenreTags">
+          <span class="genre-tag active" data-query="telugu"><i class="fa-solid fa-star"></i> Telugu Dubbed</span>
+          <span class="genre-tag" data-query="marvel"><i class="fa-solid fa-mask"></i> Marvel</span>
+          <span class="genre-tag" data-query="action"><i class="fa-solid fa-fire"></i> Action</span>
+          <span class="genre-tag" data-query="netflix"><i class="fa-solid fa-tv"></i> Trending Shows</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- Watch History Row ("Continue Watching" directly below search bar) -->
+    <section class="catalog-section" id="continueWatchingSection" style="display: none;">
+      <div class="section-header">
+        <h2><i class="fa-solid fa-clock-rotate-left"></i> Watch History</h2>
+        <button class="btn-text" id="clearHistoryBtn"><i class="fa-regular fa-trash-can"></i> Clear History</button>
+      </div>
+      <div class="media-row scroll-row" id="continueWatchingGrid"></div>
+    </section>
+
+    <!-- Catalog Sections (Home view) -->
+    <div id="homeView">
+      <section class="catalog-section" id="catalogSection">
+        <div class="section-header">
+          <h2 id="catalogHeaderTitle"><i class="fa-solid fa-fire"></i> Trending & Popular Titles</h2>
+          <div class="section-actions">
+            <button class="pill-btn active" data-filter="all">All</button>
+            <button class="pill-btn" data-filter="movie">Movies</button>
+            <button class="pill-btn" data-filter="series">TV Shows</button>
+            <button class="pill-btn" data-filter="telugu">Telugu Dubs</button>
+          </div>
+        </div>
+        <div class="media-grid" id="trendingGrid">
+          <div class="loading-spinner"><div class="spinner"></div><p>Fetching movies from MovieTap engines...</p></div>
+        </div>
+      </section>
+    </div>
+
+    <!-- Search / Filter Results View -->
+    <div id="searchResultsView" style="display: none;">
+      <section class="catalog-section">
+        <div class="section-header">
+          <h2 id="searchHeaderTitle"><i class="fa-solid fa-magnifying-glass"></i> Search Results</h2>
+          <button class="btn-text" id="backToHomeBtn"><i class="fa-solid fa-arrow-left"></i> Back to Home</button>
+        </div>
+        <div class="media-grid" id="searchGrid"></div>
+      </section>
+    </div>
+
+    <!-- Watchlist View -->
+    <div id="watchlistView" style="display: none;">
+      <section class="catalog-section">
+        <div class="section-header">
+          <h2><i class="fa-solid fa-bookmark"></i> My Watchlist</h2>
+          <button class="btn-text" id="clearWatchlistBtn"><i class="fa-regular fa-trash-can"></i> Clear All</button>
+        </div>
+        <div class="media-grid" id="watchlistGrid">
+          <div class="empty-state">
+            <i class="fa-regular fa-bookmark empty-icon"></i>
+            <h3>Your watchlist is empty</h3>
+            <p>Save movies and TV series you want to watch later by clicking the bookmark icon.</p>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <!-- Bottom Artwork Section & Repo Reference Footer -->
+    <section class="footer-anime-section" id="footerAnimeSection">
+      <div class="wallpaper-bottom-bg" id="wallpaperBottomBg"></div>
+      <div class="wallpaper-bottom-overlay"></div>
+      <div class="footer-center-content">
+        <p class="footer-repo-ref">Referenced from <a href="https://github.com/mesamirh/MovieBox-TUI" target="_blank" rel="noopener">mesamirh/MovieBox-TUI</a></p>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Disney+ / Hotstar Style Media Details Modal -->
+  <div class="modal" id="detailsModal">
+    <div class="modal-backdrop" id="modalBackdrop"></div>
+    <div class="modal-dialog">
+      <button class="modal-close-btn" id="modalCloseBtn"><i class="fa-solid fa-xmark"></i></button>
+      
+      <!-- Modal Hero Section -->
+      <div class="modal-hero" id="modalHero">
+        <div class="modal-hero-bg" id="modalHeroBg"></div>
+        <div class="modal-hero-content">
+          <div class="modal-poster-wrapper">
+            <img id="modalPoster" src="" alt="Poster" class="modal-poster">
+          </div>
+          <div class="modal-info">
+            <div class="modal-meta-chips">
+              <span class="chip-type" id="modalType">MOVIE</span>
+              <span class="chip-rating" id="modalRating"><i class="fa-solid fa-star"></i> 8.5</span>
+              <span class="chip-year" id="modalYear">2023</span>
+              <span class="chip-duration" id="modalDuration">2h 15m</span>
+            </div>
+            <h1 class="modal-title" id="modalTitle">Movie Title</h1>
+            <p class="modal-genres" id="modalGenres">Action, Drama</p>
+            <p class="modal-description" id="modalDescription">Description synopsis goes here...</p>
+            
+            <div class="modal-extra-meta">
+              <div class="meta-row" id="modalDirectorRow">
+                <span class="meta-label">Director:</span>
+                <span class="meta-value" id="modalDirector">Christopher Nolan</span>
+              </div>
+              <div class="meta-row" id="modalStarsRow">
+                <span class="meta-label">Cast:</span>
+                <span class="meta-value" id="modalStars">Actor 1, Actor 2</span>
+              </div>
+            </div>
+
+            <!-- Primary Modal Actions -->
+            <div class="modal-actions">
+              <button class="btn btn-primary btn-lg" id="modalPlayBtn">
+                <i class="fa-solid fa-play"></i> Watch Stream
+              </button>
+              <button class="btn btn-download btn-lg" id="modalDownloadBtn" title="Download movie to browser">
+                <i class="fa-solid fa-download"></i> Download
+              </button>
+              <button class="btn btn-secondary" id="modalWatchlistBtn">
+                <i class="fa-regular fa-bookmark"></i> Add to Watchlist
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Disney+ / Hotstar Style Available Audio Languages Section (Default Telugu) -->
+      <div class="modal-language-section" id="modalAudioSection">
+        <div class="section-title-row">
+          <h3><i class="fa-solid fa-headphones"></i> Available Audio Languages</h3>
+          <span class="badge-count" id="audioLanguagesCount">1 Language</span>
+        </div>
+        <p class="section-subtitle">Select an audio track below to switch dubbing language (Telugu prioritized):</p>
+        <div class="language-chips-grid" id="modalAudioChipsGrid"></div>
+      </div>
+
+      <!-- TV Series Season & Episode Selector (Shown only for TV Series) -->
+      <div class="modal-series-section" id="modalSeriesSection" style="display: none;">
+        <div class="series-section-header">
+          <h3><i class="fa-solid fa-list"></i> Select Season & Episode</h3>
+          <div class="season-selector-wrapper">
+            <label for="seasonSelect">Season:</label>
+            <select id="seasonSelect" class="season-select"></select>
+          </div>
+        </div>
+        <div class="episode-grid" id="episodeGrid"></div>
+      </div>
+
+      <!-- Available Stream Qualities Section -->
+      <div class="modal-stream-section">
+        <div class="section-title-row">
+          <h3><i class="fa-solid fa-sliders"></i> Stream Quality (For Selected Language)</h3>
+          <span class="badge-count" id="qualitiesCount">0 Available</span>
+        </div>
+        <div class="stream-qualities-list" id="streamQualitiesList">
+          <div class="loading-stream-info"><i class="fa-solid fa-spinner fa-spin"></i> Checking available stream qualities...</div>
+        </div>
+      </div>
+
+      <!-- Subtitles Preview Section -->
+      <div class="modal-subtitles-section" id="modalSubtitlesSection">
+        <div class="section-title-row">
+          <h3><i class="fa-solid fa-closed-captioning"></i> Subtitles Available</h3>
+          <span class="badge-count" id="subtitlesCount">0 Available</span>
+        </div>
+        <div class="subtitles-preview-list" id="modalSubtitlesList">
+          <span style="color: #8fa0b5; font-size: 0.85rem;">Checking subtitles...</span>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Download Options Modal Dialog -->
+  <div class="modal" id="downloadModal">
+    <div class="modal-backdrop" id="downloadModalBackdrop"></div>
+    <div class="modal-dialog download-dialog">
+      <button class="modal-close-btn" id="downloadModalCloseBtn"><i class="fa-solid fa-xmark"></i></button>
+      <div class="download-modal-header">
+        <div class="download-icon-circle"><i class="fa-solid fa-cloud-arrow-down"></i></div>
+        <div>
+          <h2 id="downloadMediaTitle">Download Movie</h2>
+          <p id="downloadMediaSubtitle" style="color: #8fa0b5; font-size: 0.88rem;">Select language, quality, and subtitle preferences:</p>
+        </div>
+      </div>
+
+      <div class="download-options-body">
+        <!-- 1. Language Option -->
+        <div class="download-opt-group">
+          <label><i class="fa-solid fa-headphones"></i> Audio Language:</label>
+          <div class="download-chips-row" id="downloadLangChips"></div>
+        </div>
+
+        <!-- 2. Quality Option -->
+        <div class="download-opt-group">
+          <label><i class="fa-solid fa-sliders"></i> Video Quality:</label>
+          <div class="download-chips-row" id="downloadQualityChips"></div>
+        </div>
+
+        <!-- 3. Subtitles Option (Includes "None / No Subtitle") -->
+        <div class="download-opt-group">
+          <label><i class="fa-solid fa-closed-captioning"></i> Subtitles Option:</label>
+          <div class="download-chips-row" id="downloadSubtitleChips">
+            <button class="download-chip active" data-sub="none">No Subtitle (None)</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="download-modal-footer">
+        <button class="btn btn-secondary" id="btnCancelDownload">Cancel</button>
+        <button class="btn btn-primary btn-lg" id="btnConfirmDownload">
+          <i class="fa-solid fa-download"></i> Start Download to Browser
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Disney+ / Hotstar Style Cinema Video Player Modal -->
+  <div class="player-modal" id="playerModal">
+    <div class="player-container" id="playerContainer">
+      
+      <!-- HTML5 Video Element -->
+      <video id="videoElement" class="video-element" playsinline crossorigin="anonymous" preload="auto"></video>
+      
+      <!-- Subtitle Display Overlay (custom high-clarity typography; duplicate native subtitle suppressed) -->
+      <div class="custom-subtitle-overlay" id="subtitleOverlay"></div>
+
+      <!-- Player Top Bar -->
+      <div class="player-top-bar" id="playerTopBar">
+        <button class="player-btn-back" id="playerCloseBtn" title="Back to Details (Esc)">
+          <i class="fa-solid fa-arrow-left"></i>
+        </button>
+        <div class="player-title-info">
+          <h3 id="playerMediaTitle">Playing Video</h3>
+          <div class="player-status-chips">
+            <span id="playerMediaSubtitle" class="player-media-subtitle">Season 1 • Episode 1</span>
+            <span class="player-status-badge" id="playerAudioBadge"><i class="fa-solid fa-headphones"></i> Telugu</span>
+            <span class="player-status-badge" id="playerQualityBadge"><i class="fa-solid fa-gear"></i> 1080p</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Center Big Play / Buffering Overlay -->
+      <div class="player-center-overlay" id="playerCenterOverlay">
+        <div class="player-big-btn" id="playerBigPlayBtn"><i class="fa-solid fa-play"></i></div>
+        <div class="player-spinner" id="playerSpinner"><div class="spinner"></div></div>
+      </div>
+
+      <!-- Hotstar Style Dual-Column "Audio & Subtitles" Drawer -->
+      <div class="audio-subtitles-drawer" id="audioSubDrawer">
+        <div class="drawer-header">
+          <h4><i class="fa-solid fa-sliders"></i> Audio & Subtitles</h4>
+          <button class="drawer-close-btn" id="drawerCloseBtn"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div class="drawer-content">
+          <div class="drawer-column">
+            <div class="drawer-col-title"><i class="fa-solid fa-headphones"></i> Audio Language</div>
+            <div class="drawer-list" id="drawerAudioList"></div>
+          </div>
+          <div class="drawer-column">
+            <div class="drawer-col-title"><i class="fa-solid fa-closed-captioning"></i> Subtitles</div>
+            <div class="drawer-list" id="drawerSubtitlesList"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Player Bottom Controls -->
+      <div class="player-controls-bar" id="playerControlsBar">
+        <!-- Progress Bar with Hover Preview -->
+        <div class="player-progress-container" id="progressContainer">
+          <div class="progress-hover-time" id="progressHoverTime">00:00</div>
+          <div class="player-progress-track">
+            <div class="player-progress-buffered" id="progressBuffered"></div>
+            <div class="player-progress-filled" id="progressFilled"></div>
+            <div class="player-progress-thumb"></div>
+          </div>
+        </div>
+
+        <div class="player-controls-row">
+          <div class="controls-left">
+            <button class="ctrl-btn" id="btnPlayPause" title="Play/Pause (Space)"><i class="fa-solid fa-play"></i></button>
+            <button class="ctrl-btn" id="btnRewind" title="Rewind 10s (←)"><i class="fa-solid fa-rotate-left"></i> <span>10</span></button>
+            <button class="ctrl-btn" id="btnForward" title="Forward 10s (→)"><i class="fa-solid fa-rotate-right"></i> <span>10</span></button>
+            
+            <div class="volume-control">
+              <button class="ctrl-btn" id="btnVolume" title="Mute/Unmute (M)"><i class="fa-solid fa-volume-high"></i></button>
+              <input type="range" class="volume-slider" id="volumeSlider" min="0" max="1" step="0.05" value="1">
+            </div>
+
+            <div class="time-display">
+              <span id="currentTime">00:00</span> / <span id="totalDuration">00:00</span>
+            </div>
+          </div>
+
+          <div class="controls-right">
+            <!-- Next Episode Button (Series only) -->
+            <button class="ctrl-btn next-ep-btn" id="btnNextEpisode" style="display: none;" title="Next Episode">
+              <i class="fa-solid fa-forward-step"></i> Next Ep
+            </button>
+
+            <!-- Audio & Subtitles Combined Button (Disney+ / Hotstar style) -->
+            <button class="ctrl-btn hotstar-audio-btn" id="btnAudioSubtitles" title="Audio & Subtitles (A)">
+              <i class="fa-solid fa-headphones"></i> <span>Audio & Subs</span>
+            </button>
+
+            <!-- Quality Selector Menu -->
+            <div class="dropdown-wrapper">
+              <button class="ctrl-btn" id="btnQuality" title="Video Quality">
+                <i class="fa-solid fa-gear"></i> <span id="qualityBadgeLabel">1080p</span>
+              </button>
+              <div class="dropdown-menu" id="qualityMenu">
+                <div class="dropdown-header">Stream Quality</div>
+                <div class="dropdown-list" id="qualityOptionsList"></div>
+              </div>
+            </div>
+
+            <!-- Playback Speed Menu -->
+            <div class="dropdown-wrapper">
+              <button class="ctrl-btn" id="btnSpeed" title="Speed">
+                <span id="speedLabel">1x</span>
+              </button>
+              <div class="dropdown-menu" id="speedMenu">
+                <div class="dropdown-header">Playback Speed</div>
+                <div class="dropdown-list">
+                  <button class="dropdown-item" data-speed="0.5">0.5x</button>
+                  <button class="dropdown-item" data-speed="0.75">0.75x</button>
+                  <button class="dropdown-item active" data-speed="1.0">1.0x (Normal)</button>
+                  <button class="dropdown-item" data-speed="1.25">1.25x</button>
+                  <button class="dropdown-item" data-speed="1.5">1.5x</button>
+                  <button class="dropdown-item" data-speed="2.0">2.0x</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Download Button in Player -->
+            <button class="ctrl-btn" id="btnPlayerDownload" title="Download Video to Browser"><i class="fa-solid fa-download"></i></button>
+
+            <!-- Picture in Picture -->
+            <button class="ctrl-btn" id="btnPiP" title="Picture in Picture"><i class="fa-solid fa-clone"></i></button>
+
+            <!-- Fullscreen -->
+            <button class="ctrl-btn" id="btnFullscreen" title="Fullscreen (F)"><i class="fa-solid fa-expand"></i></button>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Notification Toast -->
+  <div class="toast" id="toast"></div>
+
+  <!-- App Script -->
+  <script src="/static/app.js"></script>
+</body>
+</html>
